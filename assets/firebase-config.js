@@ -1,22 +1,18 @@
-// assets/firebase-config.js
-// Cole aqui o seu firebaseConfig (Firebase Console > Project settings > Your apps > Firebase SDK snippet > Config)
-//
-// Exemplo:
-// export const firebaseConfig = {
-//   apiKey: "...",
-//   authDomain: "...",
-//   projectId: "...",
-//   storageBucket: "...",
-//   messagingSenderId: "...",
-//   appId: "...",
-// };
-//
-// IMPORTANTE: se você não colar o config, o site vai cair automaticamente para products.json/localStorage.
-export const firebaseConfig = {
-  apiKey: "PASTE_YOUR_API_KEY_HERE",
-  authDomain: "PASTE_YOUR_AUTH_DOMAIN_HERE",
-  projectId: "PASTE_YOUR_PROJECT_ID_HERE",
-  storageBucket: "PASTE_YOUR_STORAGE_BUCKET_HERE",
-  messagingSenderId: "PASTE_YOUR_SENDER_ID_HERE",
-  appId: "PASTE_YOUR_APP_ID_HERE",
+
+// Firebase config (modo CDN / site estático)
+const firebaseConfig = {
+  apiKey: "AIzaSyC2ounkWYySgTAV8PyO1bNtlkSrTSBA4c8",
+  authDomain: "site-studiomind.firebaseapp.com",
+  projectId: "site-studiomind",
+  storageBucket: "site-studiomind.firebasestorage.app",
+  messagingSenderId: "191639707596",
+  appId: "1:191639707596:web:a46f3d4033ed93ab180769",
+  measurementId: "G-34SZF46TWR"
 };
+
+// Inicializa Firebase (CDN)
+firebase.initializeApp(firebaseConfig);
+
+// Serviços usados no site
+window.auth = firebase.auth();
+window.db = firebase.firestore();
