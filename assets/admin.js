@@ -87,6 +87,69 @@ import { db, auth, firebaseReady } from "./firebase.js";
 (async () => {
   const $ = (s) => document.querySelector(s);
 
+  // ------------------------- Categorias (LocalStorage) -------------------------
+  // Mantém a mesma chave usada pelo app.js.
+  const CATEGORIES_KEY = "storeCategories";
+
+  function slugify(label){
+    return String(label||"")
+      .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+      .toLowerCase().trim()
+      .replace(/[^a-z0-9]+/g,"-")
+      .replace(/(^-|-$)/g,"") || "categoria";
+  }
+
+  function getDefaultCategories(){
+    // Inclui as categorias citadas no rodapé do admin.
+    return [
+      { id: "kits", label: "KITS" },
+      { id: "avulsos", label: "AVULSOS" },
+      { id: "promocoes", label: "PROMOÇÕES" },
+      { id: "novidades", label: "NOVIDADES" },
+    ];
+  }
+
+  function loadCategories(){
+    try{
+      const raw = localStorage.getItem(CATEGORIES_KEY);
+      if(!raw) return getDefaultCategories();
+      const parsed = JSON.parse(raw);
+      if(!Array.isArray(parsed) || parsed.length === 0) return getDefaultCategories();
+
+      const seen = new Set();
+      const clean = [];
+      parsed.forEach((c, idx) => {
+        if(!c) return;
+        const id = String(c.id || "").trim() || `cat-${idx+1}`;
+        if(seen.has(id)) return;
+        seen.add(id);
+        const label = String(c.label || c.name || id).trim() || id;
+        clean.push({ id, label });
+      });
+      return clean.length ? clean : getDefaultCategories();
+    }catch{
+      return getDefaultCategories();
+    }
+  }
+
+  function saveCategories(){
+    try{
+      localStorage.setItem(CATEGORIES_KEY, JSON.stringify(categories, null, 2));
+    }catch(e){
+      console.warn(e);
+    }
+  }
+
+  function categoryOptionsHtml(selected){
+    const opts = [{ id: "todos", label: "TODOS" }, ...categories];
+    return opts.map(c => {
+      const sel = (c.id === selected) ? "selected" : "";
+      return `<option value="${escapeHtml(c.id)}" ${sel}>${escapeHtml(c.label)}</option>`;
+    }).join("");
+  }
+
+  let categories = loadCategories();
+
   // --- Login (Firebase Auth) ---
 // Requer Authentication (Email/Senha) habilitado no Firebase.
 let authReady = false;
@@ -232,7 +295,7 @@ function setLoginHint(msg){
     }
   }
 
-  let products = [];
+  let products = loadProducts();
 
   function ensureIds() {
     const seen = new Set();
