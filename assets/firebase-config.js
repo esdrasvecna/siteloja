@@ -1,6 +1,6 @@
-
-// Firebase config (modo CDN / site estático)
-const firebaseConfig = {
+// assets/firebase-config.js
+// Config do Firebase (Web App) — pode ser público
+export const firebaseConfig = {
   apiKey: "AIzaSyC2ounkWYySgTAV8PyO1bNtlkSrTSBA4c8",
   authDomain: "site-studiomind.firebaseapp.com",
   projectId: "site-studiomind",
@@ -9,10 +9,3 @@ const firebaseConfig = {
   appId: "1:191639707596:web:a46f3d4033ed93ab180769",
   measurementId: "G-34SZF46TWR"
 };
-
-// Inicializa Firebase (CDN)
-firebase.initializeApp(firebaseConfig);
-
-// Serviços usados no site
-window.auth = firebase.auth();
-window.db = firebase.firestore();
