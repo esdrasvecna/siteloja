@@ -1,5 +1,7 @@
 // assets/admin.js
 import { db, auth, firebaseReady } from "./firebase.js";
+import { collection, getDocs, query, orderBy, doc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+import { signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -24,13 +26,6 @@ const importJsonInput = $("#importJson");
 
 let categories = [];
 let products = []; // { _docId?, id, cat, name, desc, image, priceCents, order, active }
-
-async function fs(){
-  return await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js");
-}
-async function fa(){
-  return await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js");
-}
 
 function slugify(label){
   return String(label||"")
@@ -88,7 +83,6 @@ async function login(){
   const pass = passEl.value||"";
   if(!email || !pass){ setHint("Preencha email e senha.", true); return; }
   try{
-    const { signInWithEmailAndPassword } = await fa();
     await signInWithEmailAndPassword(auth, email, pass);
     setHint("Login ok.");
   }catch(e){
@@ -99,7 +93,6 @@ async function login(){
 
 async function logout(){
   try{
-    const { signOut } = await fa();
     await signOut(auth);
   }catch(e){
     console.warn(e);
@@ -108,7 +101,6 @@ async function logout(){
 
 async function watchAuth(){
   if(!(await ensureFirebase())) return;
-  const { onAuthStateChanged } = await fa();
   onAuthStateChanged(auth, async (user)=>{
     const logged = !!user;
     loginPanel.style.display = logged ? "none" : "block";
@@ -124,7 +116,6 @@ async function watchAuth(){
 
 /* ------------------------- Firestore I/O ------------------------- */
 async function loadCategoriesFS(){
-  const { collection, getDocs, query, orderBy } = await fs();
   const snap = await getDocs(query(collection(db,"categories"), orderBy("order","asc")));
   const out=[];
   snap.forEach(d=>{
@@ -135,7 +126,6 @@ async function loadCategoriesFS(){
 }
 
 async function saveCategoriesFS(newCats){
-  const { collection, getDocs, doc, writeBatch } = await fs();
   const col = collection(db,"categories");
   const existing = await getDocs(col);
   const keepIds = new Set(newCats.map(c=>c.id));
@@ -157,7 +147,6 @@ async function saveCategoriesFS(newCats){
 }
 
 async function loadProductsFS(){
-  const { collection, getDocs, query, orderBy } = await fs();
   const snap = await getDocs(query(collection(db,"products"), orderBy("order","asc")));
   const out=[];
   snap.forEach(d=>{
@@ -178,7 +167,6 @@ async function loadProductsFS(){
 }
 
 async function saveProductsFS(newProducts){
-  const { collection, getDocs, doc, writeBatch } = await fs();
   const col = collection(db,"products");
   const existing = await getDocs(col);
   const keep = new Set(newProducts.map(p=>p._docId).filter(Boolean));

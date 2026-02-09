@@ -1,5 +1,6 @@
 // assets/app.js
 import { db, firebaseReady } from "./firebase.js";
+import { collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 // Loja com carrinho (LocalStorage) + checkout + contato via WhatsApp.
 
 // WhatsApp do atendimento (formato: 55DDDNÚMERO, sem + e sem espaços)
@@ -9,7 +10,7 @@ const WHATSAPP_NUMBER = "5564999076197";
 const PRODUCTS_URL = "./assets/products.json";
 
 const CUSTOM_PRODUCTS_KEY = "customProducts"; 
-const FIRESTORE_ONLY = true; // NÃO carregar products.json/localStorage
+const FIRESTORE_ONLY = false; // permite fallback (products.json) se Firestore falhar
 // usado pela página /admin.html
 const CATEGORIES_KEY = "storeCategories"; // usado pelo /admin.html
 
@@ -29,16 +30,10 @@ function loadCustomProducts(){
 
 
 // ------------------------- Firestore helpers -------------------------
-async function fs(){
-  const mod = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js");
-  return mod;
-}
-
 // Lê categorias do Firestore (se configurado). Retorna null se não disponível.
 async function loadCategoriesFromFirestore(){
   if(!firebaseReady) return null;
   try{
-    const { collection, getDocs, query, orderBy } = await fs();
     const snap = await getDocs(query(collection(db,"categories"), orderBy("order","asc")));
     const out=[];
     snap.forEach(d=>{
@@ -47,7 +42,7 @@ async function loadCategoriesFromFirestore(){
     });
     return out.length ? out : null;
   }catch(e){
-    console.warn("[firestore] categorias:", e);
+    console.warn("[firestore] categorias: falha ao ler. Verifique Rules (leitura pública) e se a coleção é categories.", e);
     return null;
   }
 }
@@ -56,7 +51,6 @@ async function loadCategoriesFromFirestore(){
 async function loadProductsFromFirestore(){
   if(!firebaseReady) return null;
   try{
-    const { collection, getDocs, query, orderBy } = await fs();
     const snap = await getDocs(query(collection(db,"products"), orderBy("order","asc")));
     const out=[];
     snap.forEach(d=>{
@@ -80,7 +74,7 @@ async function loadProductsFromFirestore(){
     });
     return out.length ? out : null;
   }catch(e){
-    console.warn("[firestore] produtos:", e);
+    console.warn("[firestore] produtos: falha ao ler. Verifique Rules (leitura pública) e se a coleção é products.", e);
     return null;
   }
 }
