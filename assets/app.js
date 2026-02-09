@@ -27,6 +27,64 @@ function loadCustomProducts(){
 }
 
 
+
+// ------------------------- Firestore helpers -------------------------
+async function fs(){
+  const mod = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js");
+  return mod;
+}
+
+// Lê categorias do Firestore (se configurado). Retorna null se não disponível.
+async function loadCategoriesFromFirestore(){
+  if(!firebaseReady) return null;
+  try{
+    const { collection, getDocs, query, orderBy } = await fs();
+    const snap = await getDocs(query(collection(db,"categories"), orderBy("order","asc")));
+    const out=[];
+    snap.forEach(d=>{
+      const data=d.data()||{};
+      out.push({ id: d.id, label: String(data.label||d.id) });
+    });
+    return out.length ? out : null;
+  }catch(e){
+    console.warn("[firestore] categorias:", e);
+    return null;
+  }
+}
+
+// Lê produtos do Firestore (se configurado). Retorna null se não disponível.
+async function loadProductsFromFirestore(){
+  if(!firebaseReady) return null;
+  try{
+    const { collection, getDocs, query, orderBy } = await fs();
+    const snap = await getDocs(query(collection(db,"products"), orderBy("order","asc")));
+    const out=[];
+    snap.forEach(d=>{
+      const data=d.data()||{};
+      if(data.active === false) return;
+      let priceCents = Number(data.priceCents);
+      if(!Number.isFinite(priceCents)){
+        const p = Number(data.price);
+        priceCents = Number.isFinite(p) ? Math.round(p*100) : 0;
+      }
+      out.push({
+        id: data.id || d.id,
+        cat: data.cat || data.category || "novidades",
+        name: String(data.name||""),
+        desc: String(data.desc||""),
+        image: data.image ? String(data.image) : "",
+        priceCents: Math.max(0, Math.round(priceCents)),
+        order: Number.isFinite(Number(data.order)) ? Number(data.order) : 0,
+        _docId: d.id,
+      });
+    });
+    return out.length ? out : null;
+  }catch(e){
+    console.warn("[firestore] produtos:", e);
+    return null;
+  }
+}
+
 function slugifyCategory(label){
   return String(label||"")
     .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
@@ -180,7 +238,7 @@ const tabsEl = document.getElementById("categoryTabs") || document.querySelector
 let tabs = [];
 let categories = (await loadCategoriesFromFirestore()) || loadCategories();
 
-function buildTabs(){
+async function buildTabs(){
   if(!tabsEl) return;
   categories = (await loadCategoriesFromFirestore()) || loadCategories();
   const buttons = [
@@ -597,7 +655,7 @@ btnWhatsApp?.addEventListener("click", ()=>{
 /* ------------------------- Init ------------------------- */
 (async ()=>{
   products = (await loadProductsFromFirestore()) || (await loadProducts());
-  buildTabs();
+  await buildTabs();
   wireTabs();
   setActiveTab("todos");
   syncCartUI();

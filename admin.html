@@ -16,6 +16,8 @@
       </a>
       <nav class="nav">
         <a class="navLink" href="./index.html">Voltar ao site</a>
+        <span class="adminUserBadge" id="adminUserBadge" title="Logado" style="display:none;"></span>
+        <button class="btn btn-ghost" id="adminLogout" type="button" style="display:none;">Sair</button>
       </nav>
     </div>
   </header>
@@ -25,10 +27,18 @@
       <h1 class="panelTitle">Acesso admin</h1>
       <p class="muted" style="max-width: 70ch;">Faça login para editar o catálogo que aparece na vitrine.</p>
 
-      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:10px;">
-        <input class="input" id="adminEmail" type="email" placeholder="Email" autocomplete="username" style="width: min(360px, 100%);" />
-        <input class="input" id="adminPass" type="password" placeholder="Senha" autocomplete="current-password" style="width: min(260px, 100%);" />
-        <button class="btn btn-primary" id="adminLogin">Entrar</button>
+      <div class="authGrid">
+        <div class="field">
+          <label for="adminEmail">Email</label>
+          <input class="input" id="adminEmail" type="email" placeholder="seu@email.com" autocomplete="username" />
+        </div>
+        <div class="field">
+          <label for="adminPass">Senha</label>
+          <input class="input" id="adminPass" type="password" placeholder="••••••••" autocomplete="current-password" />
+        </div>
+        <div class="field" style="align-self:end;">
+          <button class="btn btn-primary btn-block" id="adminLogin" type="button">Entrar</button>
+        </div>
       </div>
       <p class="muted" id="loginHint" style="margin-top:10px; display:none;"></p>
     </section>
