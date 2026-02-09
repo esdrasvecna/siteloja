@@ -15,7 +15,10 @@
 <header class="topbar">
 <div class="container topbar__inner">
 <a aria-label="Voltar ao topo" class="logo" href="#topo">
-<span class="logo__mark">M</span>
+<span class="logo__mark" aria-hidden="true">
+  <!-- Troque o arquivo abaixo pela sua logo (PNG/SVG) -->
+  <img class="logo__img" src="./assets/images/logo.png" alt=""/>
+</span>
 <span class="logo__text">StudioMind</span>
 </a>
 <nav class="nav">
@@ -36,11 +39,11 @@
 <span class="chip__text">Carrinho + checkout rápido</span>
 </div>
 <h1 class="h1">
-            TENHA UMA <span class="accent">VITRINE</span><br/>
+            TENHA UMA <span class="accent">IDENTIDADE VISUAL</span><br/>
             PROFISSIONAL PARA<br/>
             VENDER MAIS.
           </h1>
-<p class="lead">Uma vitrine premium para apresentar seus produtos e serviços, montar o carrinho e finalizar com pagamento seguro.</p>
+<p class="lead">Uma Identidade Visual premium para apresentar seus produtos e serviços, montar o carrinho e finalizar com pagamento seguro.</p>
 <div class="hero__actions">
 <button aria-label="Ver produtos" class="circleCta" id="scrollToProducts" type="button">
 <span class="circleCta__arrow">→</span>
@@ -51,21 +54,22 @@
 </div>
 </div>
 <div class="hero__note muted">
-            Dá pra atualizar produtos, preços e categorias em minutos — e receber pedidos direto no WhatsApp.
+            Combine preços, produtos em minutos, apenas entrando em contato pelo Whatsapp!
           </div>
 </div>
 <div aria-hidden="true" class="hero__right">
 <div class="mosaic">
-<div class="tile tile--big">
+<div class="tile tile--big tile--hero1">
 <div class="tile__overlay">
 <div class="tile__tag">Destaque</div>
-<div class="tile__title">Coleção Premium</div>
+<div class="tile__title">Marcas desenvolvidas
 </div>
 </div>
-<div class="tile tile--mid"></div>
-<div class="tile tile--mid tile--img2"></div>
-<div class="tile tile--small"></div>
-<div class="tile tile--small tile--img3"></div>
+</div>
+<div class="tile tile--mid tile--hero2"></div>
+<div class="tile tile--mid tile--img2 tile--hero3"></div>
+<div class="tile tile--small tile--hero4"></div>
+<div class="tile tile--small tile--img3 tile--hero5"></div>
 </div>
 </div>
 </div>
@@ -102,7 +106,9 @@
 </article>
 <article class="trustCard trustCard--highlight">
 <div class="trustCard__top">
-<div class="miniLogo">m</div>
+<div class="miniLogo" aria-hidden="true">
+  <img class="miniLogo__img" src="./assets/images/logo-mark.png" alt=""/>
+</div>
 </div>
 <div class="trustCard__title">Foco em conversão</div>
 <div class="trustCard__text muted">CTA sempre visível no topo.</div>
@@ -125,35 +131,7 @@
 </div>
 </div>
 </section>
-<!-- HOW IT WORKS -->
-<section class="panel" id="como-funciona">
-<div class="container panel__inner">
-<h2 class="h2">UM FLUXO SIMPLES PRA VENDER</h2>
-<div class="steps">
-<article class="stepCard stepCard--light">
-<div class="stepChip">CATÁLOGO</div>
-<h3>Vitrine organizada</h3>
-<p>Cards com foto, preço e botão de pedido.</p>
-<div class="stepFooter">Clareza pra vender.</div>
-</article>
-<article class="stepCard stepCard--light">
-<div class="stepChip">WHATSAPP</div>
-<h3>Pedido em 1 clique</h3>
-<p>O cliente vai pro WhatsApp com o resumo do carrinho.</p>
-<div class="stepFooter">Conexão que converte.</div>
-</article>
-</div>
-<div class="panelCta">
-<button aria-label="Quero pedir no atendimento" class="circleCta" id="openCartPanel" type="button">
-<span class="circleCta__arrow">→</span>
-</button>
-<div class="panelCta__text">
-<div class="panelCta__title">QUERO COMPRAR AGORA</div>
-<div class="muted">Abra o carrinho para pagar ou tirar dúvidas</div>
-</div>
-</div>
-</div>
-</section>
+
 <!-- WHY US -->
 <section class="section" id="vantagens">
 <div class="container">
