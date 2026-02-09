@@ -127,6 +127,7 @@
                 <th>Ordem</th>
                 <th>Visível</th>
                 <th>Categoria</th>
+                <th>Foto</th>
                 <th>Nome</th>
                 <th>Descrição</th>
                 <th>Preço (R$)</th>
@@ -137,6 +138,29 @@
           </table>
         </div>
       </section>
+
+      <section class="adminCard adminCard--tight" style="margin-top:16px;">
+        <div class="adminCardHead adminCardHead--row">
+          <h2 class="adminH2">Depoimentos</h2>
+          <p class="adminSubtitle" style="margin:0;">Aparecem no rodapé do site.</p>
+        </div>
+
+        <div class="adminInlineForm">
+          <input class="in" id="tName" placeholder="Nome (ex.: Ana)" />
+          <select class="in" id="tRating" aria-label="Nota">
+            <option value="5">★★★★★ (5)</option>
+            <option value="4">★★★★☆ (4)</option>
+            <option value="3">★★★☆☆ (3)</option>
+            <option value="2">★★☆☆☆ (2)</option>
+            <option value="1">★☆☆☆☆ (1)</option>
+          </select>
+          <input class="in" id="tText" placeholder="Comentário (curto e direto)" />
+          <button class="btn btn--accent" id="addTestimonial" type="button">Adicionar</button>
+        </div>
+
+        <div id="testimonialsList" class="adminCats" style="margin-top:12px;"></div>
+      </section>
+
     </section>
   </main>
 

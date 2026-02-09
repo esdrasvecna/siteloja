@@ -1,10 +1,11 @@
 // assets/admin.js
-import { db, auth, firebaseReady } from "./firebase.js";
+import { db, auth, storage, firebaseReady } from "./firebase.js";
 
 const $ = (s) => document.querySelector(s);
 
 let categories = [];
 let products = [];
+let testimonials = [];
 
 let filterText = "";
 let filterCat = "all";
@@ -22,6 +23,14 @@ async function fa(){
   if(authMod) return authMod;
   authMod = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js");
   return authMod;
+
+let storageMod = null;
+async function st(){
+  if(storageMod) return storageMod;
+  storageMod = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-storage.js");
+  return storageMod;
+}
+
 }
 
 /* ------------------------- Toast ------------------------- */
@@ -157,6 +166,7 @@ async function loadProducts(){
       cat: data.cat || "avulsos",
       name: data.name || "",
       desc: data.desc || "",
+      image: data.image || "",
       priceCents: Number(data.priceCents ?? 0),
       order: Number(data.order ?? 9999),
       active: data.active !== false
@@ -179,6 +189,140 @@ async function saveCategories(){
   await batch.commit();
 }
 
+
+async function loadTestimonials(){
+  if(!firebaseReady) return [];
+  try{
+    const { collection, getDocs, query, orderBy } = await fs();
+    const snap = await getDocs(query(collection(db, "testimonials"), orderBy("createdAt","desc")));
+    const out = [];
+    snap.forEach(d=>{
+      const data = d.data() || {};
+      out.push({
+        id: d.id,
+        name: data.name || "Cliente",
+        text: data.text || "",
+        rating: Number(data.rating ?? 5),
+        active: data.active !== false,
+        createdAt: data.createdAt || null
+      });
+    });
+    return out;
+  }catch(err){
+    console.warn("[firestore] depoimentos:", err);
+    return [];
+  }
+}
+
+async function addTestimonial(){
+  const name = ($("#tName")?.value || "").trim() || "Cliente";
+  const text = ($("#tText")?.value || "").trim();
+  const rating = Number($("#tRating")?.value || 5);
+
+  if(!text) throw new Error("Escreva um comentário.");
+
+  const { collection, addDoc, serverTimestamp } = await fs();
+  await addDoc(collection(db,"testimonials"), {
+    name,
+    text,
+    rating,
+    active: true,
+    createdAt: serverTimestamp()
+  });
+
+  $("#tText") && ($("#tText").value = "");
+  showToast("Pronto", "Depoimento adicionado.");
+}
+
+async function updateTestimonial(id, patch){
+  const { doc, updateDoc } = await fs();
+  await updateDoc(doc(db,"testimonials", id), patch);
+}
+
+async function deleteTestimonial(id){
+  const { doc, deleteDoc } = await fs();
+  await deleteDoc(doc(db,"testimonials", id));
+}
+
+function renderTestimonialsAdmin(){
+  const host = $("#testimonialsList");
+  if(!host) return;
+
+  if(!testimonials.length){
+    host.innerHTML = `<div class="muted">Sem depoimentos ainda. Adicione acima.</div>`;
+    return;
+  }
+
+  host.innerHTML = testimonials.map(t => `
+    <div class="catRow" data-tid="${escapeHtml(t.id)}">
+      <div class="catLeft">
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <div style="font-weight:800;">${escapeHtml(t.name)}</div>
+          <div class="muted" style="font-size:12px;">${"★★★★★".slice(0,Math.max(0,Math.min(5,t.rating)))}${"☆☆☆☆☆".slice(0,5-Math.max(0,Math.min(5,t.rating)))}</div>
+        </div>
+        <div class="muted" style="margin-top:6px; font-size:13px;">${escapeHtml(t.text)}</div>
+      </div>
+      <div class="catRight">
+        <label class="switch">
+          <input type="checkbox" data-t-active ${t.active ? "checked":""} />
+          <span class="switch__track"></span>
+        </label>
+        <button class="miniBtn" data-t-act="del" type="button">Excluir</button>
+      </div>
+    </div>
+  `).join("");
+}
+
+function wireTestimonials(){
+  $("#addTestimonial")?.addEventListener("click", async ()=>{
+    try{
+      await addTestimonial();
+      testimonials = await loadTestimonials();
+      renderTestimonialsAdmin();
+    }catch(err){
+      showToast("Erro", err?.message || "Não consegui adicionar.");
+    }
+  });
+
+  $("#testimonialsList")?.addEventListener("change", async (e)=>{
+    const row = e.target.closest("[data-tid]");
+    if(!row) return;
+    const id = row.dataset.tid;
+
+    if(e.target.matches("[data-t-active]")){
+      const active = !!e.target.checked;
+      try{
+        await updateTestimonial(id, { active });
+        const t = testimonials.find(x=>x.id===id);
+        if(t) t.active = active;
+        showToast("Ok", active ? "Agora aparece no site." : "Oculto no site.");
+      }catch(err){
+        showToast("Erro", "Não consegui atualizar.");
+      }
+    }
+  });
+
+  $("#testimonialsList")?.addEventListener("click", async (e)=>{
+    const btn = e.target.closest("[data-t-act]");
+    if(!btn) return;
+    const row = btn.closest("[data-tid]");
+    if(!row) return;
+    const id = row.dataset.tid;
+
+    if(btn.dataset.tAct === "del"){
+      try{
+        await deleteTestimonial(id);
+        testimonials = testimonials.filter(x=>x.id!==id);
+        renderTestimonialsAdmin();
+        showToast("Excluído", "Depoimento removido.");
+      }catch(err){
+        showToast("Erro", "Não consegui excluir.");
+      }
+    }
+  });
+}
+
+
 async function saveProducts(){
   if(!firebaseReady) throw new Error("Firebase não configurado.");
   const { doc, writeBatch } = await fs();
@@ -192,6 +336,7 @@ async function saveProducts(){
       cat: p.cat,
       name: p.name,
       desc: p.desc,
+      image: (p.image || "").trim(),
       priceCents: Number(p.priceCents ?? 0),
       order: p.order,
       active: p.active !== false
@@ -296,6 +441,18 @@ function renderProducts(){
             ${catSelect}
           </select>
           ${catWarning}
+        </td>
+        <td>
+          <div class="imgCell">
+            <div class="thumb" style="${p.image ? `background-image:url(${encodeURI(p.image)})` : ``}"></div>
+            <div class="imgControls">
+              <input class="input in--sm" data-field="image" placeholder="URL da foto (ou envie)" value="${escapeHtml(p.image||"")}" />
+              <div class="miniRow">
+                <button class="miniBtn" data-act="upload" type="button">Enviar</button>
+                <button class="miniBtn" data-act="clearimg" type="button" ${p.image ? "" : "disabled"}>Limpar</button>
+              </div>
+            </div>
+          </div>
         </td>
         <td>
           <input class="input" data-field="name" value="${escapeHtml(p.name)}" />
@@ -404,7 +561,7 @@ function wireProducts(){
       const id = doc(collection(db, "products")).id;
 
       const defaultCat = categories[0]?.id || "avulsos";
-      const p = { id, cat: defaultCat, name: "Novo produto", desc: "", priceCents: 0, active: true, order: 0 };
+      const p = { id, cat: defaultCat, name: "Novo produto", desc: "", image: "", priceCents: 0, active: true, order: 0 };
 
       // entra no topo, sem scroll
       products.unshift(p);
@@ -441,6 +598,7 @@ function wireProducts(){
     if(field === "name") p.name = e.target.value || "";
     if(field === "desc") p.desc = e.target.value || "";
     if(field === "price") p.priceCents = currencyToCents(e.target.value);
+    if(field === "image") p.image = (e.target.value || "").trim();
 
     updateStats();
   });
@@ -463,7 +621,37 @@ function wireProducts(){
       [products[idx+1], products[idx]] = [products[idx], products[idx+1]];
       renderProducts();
     }
-    if(act === "delete"){
+    
+    if(act === "upload"){
+      try{
+        if(!storage) throw new Error("Firebase Storage não está configurado.");
+        const file = await pickImageFile();
+        if(!file) return;
+
+        showToast("Enviando…", "Aguarde um instante.", 1200);
+        const url = await uploadProductImage(id, file);
+
+        const p = products.find(x=>x.id===id);
+        if(p){
+          p.image = url;
+          renderProducts();
+          showToast("Pronto", "Foto enviada.");
+        }
+      }catch(err){
+        showToast("Erro", err?.message || "Não consegui enviar a foto.");
+      }
+    }
+
+    if(act === "clearimg"){
+      const p = products.find(x=>x.id===id);
+      if(p){
+        p.image = "";
+        renderProducts();
+        showToast("Ok", "Foto removida deste produto.");
+      }
+    }
+
+if(act === "delete"){
       // remove na hora (e apaga no Firestore também)
       try{
         await deleteProduct(id);
@@ -622,6 +810,7 @@ async function refreshAll(showToasts=false){
   wireFilters();
   wireCategories();
   wireProducts();
+  wireTestimonials();
   wireMore();
 
   if(!firebaseReady || !auth){

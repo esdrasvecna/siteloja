@@ -203,6 +203,7 @@ async function loadProductsFromFirestore(){
         cat: data.cat || "avulsos",
         name: data.name || "",
         desc: data.desc || "",
+        image: data.image || "",
         priceCents: Number(data.priceCents ?? 0),
         order: Number(data.order ?? 9999),
         active: data.active !== false
@@ -263,7 +264,7 @@ function renderProducts(filter){
 
   grid.innerHTML = list.map(p => `
     <article class="productCard" data-open="${p.id}" role="button" tabindex="0" aria-label="Ver detalhes de ${p.name}">
-      <div class="productImg" aria-hidden="true"></div>
+      <div class="productImg" aria-hidden="true" style="${p.image ? `background-image:url(${encodeURI(p.image)})` : ``}"></div>
       <div class="productBody">
         <h3 class="productTitle">${p.name}</h3>
         <div class="productMeta">
@@ -647,8 +648,77 @@ btnWhatsApp?.addEventListener("click", ()=>{
 })();
 
 /* ------------------------- Init ------------------------- */
+
+/* ------------------------- Testimonials ------------------------- */
+async function loadTestimonialsFromFirestore(){
+  if(!firebaseReady || !db) return [];
+  try{
+    const { collection, getDocs, query, where, orderBy, limit } = await fs();
+    const q = query(
+      collection(db,"testimonials"),
+      where("active","==", true),
+      orderBy("createdAt","desc"),
+      limit(6)
+    );
+    const snap = await getDocs(q);
+    const out = [];
+    snap.forEach(d=>{
+      const data = d.data() || {};
+      out.push({
+        id: d.id,
+        name: data.name || "Cliente",
+        text: data.text || "",
+        rating: Number(data.rating ?? 5)
+      });
+    });
+    return out;
+  }catch(err){
+    console.warn("[firestore] depoimentos:", err);
+    return [];
+  }
+}
+
+function stars(n){
+  const x = Math.max(0, Math.min(5, Number(n||0)));
+  return "★★★★★".slice(0,x) + "☆☆☆☆☆".slice(0,5-x);
+}
+
+async function renderTestimonials(){
+  const host = document.getElementById("testimonials");
+  if(!host) return;
+  const list = await loadTestimonialsFromFirestore();
+  if(!list.length){
+    host.innerHTML = `<div class="muted">Em breve, novos depoimentos por aqui.</div>`;
+    return;
+  }
+  host.innerHTML = list.map(t => `
+    <div class="tCard">
+      <div class="tTop">
+        <div class="tName">${escapeHtml(t.name)}</div>
+        <div class="tStars" aria-label="Avaliação">${stars(t.rating)}</div>
+      </div>
+      <div class="tText">${escapeHtml(t.text)}</div>
+    </div>
+  `).join("");
+}
+
+function wireFooter(){
+  const y = document.getElementById("yearNow");
+  if(y) y.textContent = String(new Date().getFullYear());
+
+  const a = document.getElementById("footerWhats");
+  if(a){
+    const msg = encodeURIComponent("Oi! Quero tirar uma dúvida / fazer um pedido 😊");
+    a.href = `https://wa.me/${WHATSAPP_NUMBER}?text=${msg}`;
+    a.target = "_blank";
+    a.rel = "noopener";
+  }
+}
+
 (async ()=>{
   products = (await loadProductsFromFirestore()) || (await loadProducts());
+  wireFooter();
+  await renderTestimonials();
   await buildTabs();
   wireTabs();
   setActiveTab("todos");
