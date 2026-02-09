@@ -1,3 +1,4 @@
+const FIRESTORE_ONLY = true; // admin só grava/lê do Firestore
 
 
 // --- Firestore (opcional) ---

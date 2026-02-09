@@ -8,10 +8,13 @@ const WHATSAPP_NUMBER = "5564999076197";
 // Produtos
 const PRODUCTS_URL = "./assets/products.json";
 
-const CUSTOM_PRODUCTS_KEY = "customProducts"; // usado pela página /admin.html
+const CUSTOM_PRODUCTS_KEY = "customProducts"; 
+const FIRESTORE_ONLY = true; // NÃO carregar products.json/localStorage
+// usado pela página /admin.html
 const CATEGORIES_KEY = "storeCategories"; // usado pelo /admin.html
 
 function loadCustomProducts(){
+  if(FIRESTORE_ONLY) return null;
   try{
     const raw = localStorage.getItem(CUSTOM_PRODUCTS_KEY);
     if(!raw) return null;
