@@ -5,7 +5,7 @@
 const WHATSAPP_NUMBER = "5564999076197";
 
 // Produtos
-const PRODUCTS_URL = "./assets/products.json";
+const PRODUCTS_URL = new URL("assets/products.json", new URL(".", window.location.href)).toString();
 
 const CUSTOM_PRODUCTS_KEY = "customProducts"; // usado pela página /admin.html
 const CATEGORIES_KEY = "storeCategories"; // usado pelo /admin.html
