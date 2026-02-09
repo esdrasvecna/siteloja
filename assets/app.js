@@ -1,11 +1,12 @@
 // assets/app.js
+import { db, firebaseReady } from "./firebase.js";
 // Loja com carrinho (LocalStorage) + checkout + contato via WhatsApp.
 
 // WhatsApp do atendimento (formato: 55DDDNÚMERO, sem + e sem espaços)
 const WHATSAPP_NUMBER = "5564999076197";
 
 // Produtos
-const PRODUCTS_URL = new URL("assets/products.json", new URL(".", window.location.href)).toString();
+const PRODUCTS_URL = "./assets/products.json";
 
 const CUSTOM_PRODUCTS_KEY = "customProducts"; // usado pela página /admin.html
 const CATEGORIES_KEY = "storeCategories"; // usado pelo /admin.html
@@ -15,23 +16,8 @@ function loadCustomProducts(){
     const raw = localStorage.getItem(CUSTOM_PRODUCTS_KEY);
     if(!raw) return null;
     const parsed = JSON.parse(raw);
-
-    // formatos antigos aceitos:
-    // 1) array direto: [...]
-    // 2) objeto: { products: [...] } ou { catalog: [...] }
-    let arr = null;
-    if(Array.isArray(parsed)) arr = parsed;
-    else if(parsed && Array.isArray(parsed.products)) arr = parsed.products;
-    else if(parsed && Array.isArray(parsed.catalog)) arr = parsed.catalog;
-
-    if(!arr || arr.length === 0) return null;
-
-    // migra para o formato atual (array puro), para evitar quebrar depois
-    if(!Array.isArray(parsed)){
-      try{ localStorage.setItem(CUSTOM_PRODUCTS_KEY, JSON.stringify(arr)); }catch{}
-    }
-
-    return arr;
+    if(!Array.isArray(parsed) || parsed.length === 0) return null;
+    return parsed;
   }catch{
     return null;
   }
@@ -189,11 +175,11 @@ if(prevBtn) prevBtn.addEventListener("click", () => scrollCarousel(-1));
 if(nextBtn) nextBtn.addEventListener("click", () => scrollCarousel(1));
 const tabsEl = document.getElementById("categoryTabs") || document.querySelector(".tabs");
 let tabs = [];
-let categories = loadCategories();
+let categories = (await loadCategoriesFromFirestore()) || loadCategories();
 
 function buildTabs(){
   if(!tabsEl) return;
-  categories = loadCategories();
+  categories = (await loadCategoriesFromFirestore()) || loadCategories();
   const buttons = [
     { id: "todos", label: "TODOS" },
     ...categories
@@ -607,28 +593,7 @@ btnWhatsApp?.addEventListener("click", ()=>{
 
 /* ------------------------- Init ------------------------- */
 (async ()=>{
-  products = await loadProducts();
-  // Normaliza categorias vindas de versões antigas (ex.: "NOVIDADES" em vez de "novidades")
-  try{
-    const ids = new Set(categories.map(c => c.id));
-    const labelToId = new Map(categories.map(c => [String(c.label||"").trim().toLowerCase(), c.id]));
-    products = products.map((p) => {
-      const catRaw = String(p.cat ?? p.category ?? "").trim();
-      if(!catRaw) return { ...p, cat: categories[0]?.id || "todos" };
-
-      if(ids.has(catRaw)) return { ...p, cat: catRaw };
-
-      const byLabel = labelToId.get(catRaw.toLowerCase());
-      if(byLabel) return { ...p, cat: byLabel };
-
-      const slug = slugifyCategory(catRaw);
-      if(ids.has(slug)) return { ...p, cat: slug };
-
-      // se não bater com nada, joga em "todos" (para não sumir)
-      return { ...p, cat: "todos" };
-    });
-  }catch{}
-
+  products = (await loadProductsFromFirestore()) || (await loadProducts());
   buildTabs();
   wireTabs();
   setActiveTab("todos");

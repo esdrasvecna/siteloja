@@ -1,4 +1,89 @@
-(() => {
+
+
+// --- Firestore (opcional) ---
+// Estrutura esperada:
+//  - collection "categories": docId = slug (ex.: "kits"), campos { label, order }
+//  - collection "products": docId auto, campos { name, price, image, desc, cat, order, active }
+async function fs(){
+  const mod = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js");
+  return mod;
+}
+
+async function fsLoadCategories(){
+  if(!firebaseReady) return null;
+  try{
+    const { collection, getDocs, query, orderBy } = await fs();
+    const snap = await getDocs(query(collection(db,"categories"), orderBy("order","asc")));
+    const out=[];
+    snap.forEach(d=>{
+      const data=d.data()||{};
+      out.push({ id:d.id, label:data.label||d.id, order:Number(data.order??9999) });
+    });
+    return out.length?out:null;
+  }catch(e){ console.warn(e); return null; }
+}
+
+async function fsSaveCategories(cats){
+  if(!firebaseReady) return false;
+  const { doc, setDoc, writeBatch } = await fs();
+  const batch = writeBatch(db);
+  cats.forEach((c, idx)=>{
+    batch.set(doc(db,"categories", c.id), { label: c.label, order: idx }, { merge:true });
+  });
+  await batch.commit();
+  return true;
+}
+
+async function fsLoadProducts(){
+  if(!firebaseReady) return null;
+  try{
+    const { collection, getDocs, query, orderBy } = await fs();
+    const snap = await getDocs(query(collection(db,"products"), orderBy("order","asc")));
+    const out=[];
+    snap.forEach(d=>{
+      const data=d.data()||{};
+      out.push({
+        id:d.id,
+        name:data.name||"",
+        price:data.price??"",
+        image:data.image||data.img||"",
+        desc:data.desc||data.description||"",
+        cat:data.cat||data.category||"todos",
+        order:Number(data.order??9999),
+        active:data.active!==false,
+      });
+    });
+    return out;
+  }catch(e){ console.warn(e); return null; }
+}
+
+async function fsUpsertProduct(p){
+  const { collection, doc, setDoc } = await fs();
+  if(!firebaseReady) return false;
+  const ref = p.id ? doc(db,"products",p.id) : doc(collection(db,"products"));
+  const data = {
+    name: p.name,
+    price: p.price,
+    image: p.image,
+    desc: p.desc,
+    cat: p.cat,
+    order: Number(p.order ?? 9999),
+    active: p.active !== false,
+  };
+  await setDoc(ref, data, { merge:true });
+  return ref.id;
+}
+
+async function fsDeleteProduct(id){
+  if(!firebaseReady) return false;
+  const { doc, deleteDoc } = await fs();
+  await deleteDoc(doc(db,"products",id));
+  return true;
+}
+
+import { db, auth, firebaseReady } from "./firebase.js";
+
+(async () => {
   const $ = (s) => document.querySelector(s);
 
   // --- Login simples ---
@@ -84,7 +169,7 @@
     }
   }
 
-  let products = loadProducts();
+  let products = [];
 
   function ensureIds() {
     const seen = new Set();
@@ -133,7 +218,35 @@
           id = `${id}-${n}`;
         }
         categories.push({ id, label: label.toUpperCase() });
-        renderCategories();
+      
+// --- Bootstrap (carrega Firestore se estiver configurado) ---
+// 1) tenta Firestore
+// 2) se vazio/indisponível, usa localStorage/products.json
+try{
+  if(firebaseReady){
+    const fsCats = await fsLoadCategories();
+    if(Array.isArray(fsCats) && fsCats.length){
+      categories = fsCats;
+      // também salva local para fallback
+      saveCategories();
+    }
+    const fsProds = await fsLoadProducts();
+    if(Array.isArray(fsProds) && fsProds.length){
+      products = fsProds;
+      // salva local para fallback
+      try{ localStorage.setItem("customProducts", JSON.stringify(products)); }catch{}
+    }else{
+      products = loadProducts();
+    }
+  }else{
+    products = loadProducts();
+  }
+}catch(e){
+  console.warn(e);
+  products = loadProducts();
+}
+
+  renderCategories();
         render(); // atualiza selects na tabela
       });
     }
