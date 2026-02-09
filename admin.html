@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>StudioMind — Admin Produtos</title>
+  <link rel="stylesheet" href="/assets/style.css" />
+  <meta name="robots" content="noindex,nofollow" />
+</head>
+<body>
+  <header class="siteHeader">
+    <div class="container headerRow">
+      <a class="brand" href="/">
+        <span class="brandMark"></span>
+        <span class="brandText">StudioMind</span>
+      </a>
+      <nav class="nav">
+        <a class="navLink" href="/">Voltar ao site</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container" style="padding: 28px 0 64px;">
+    <section class="panel" id="loginPanel">
+      <h1 class="panelTitle">Acesso admin</h1>
+      <p class="muted" style="max-width: 70ch;">Faça login para editar o catálogo que aparece na vitrine.</p>
+
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:10px;">
+        <input class="input" id="adminPass" type="password" placeholder="Senha" style="width: min(360px, 100%);" />
+        <button class="btn btn-primary" id="adminLogin">Entrar</button>
+      </div>
+      <p class="muted" style="margin-top:10px;">(Dica) Se você esquecer a senha, clique 5x no título “Acesso admin”.</p>
+    </section>
+
+    <section class="panel" id="adminPanel" style="display:none;">
+      <h1 class="panelTitle">Organizar produtos</h1>
+      <p class="muted" style="max-width: 70ch;">
+        As alterações ficam salvas neste navegador. Para aplicar em outro dispositivo, use “Exportar JSON” e importe no outro.
+      </p>
+
+
+      <section class="panel" style="padding:16px; margin-top:16px;">
+        <h2 class="panelTitle" style="margin-top:0;">Categorias</h2>
+        <p class="muted" style="max-width: 70ch;">
+          Aqui você define os nomes das categorias e a ordem em que elas aparecem na loja.
+        </p>
+        <div class="panelCta" style="justify-content:flex-start; gap:10px; flex-wrap:wrap;">
+          <button class="btn" id="addCategory">Adicionar categoria</button>
+          <button class="btn" id="saveCategories">Salvar categorias</button>
+        </div>
+        <div id="categoriesList" style="margin-top:12px;"></div>
+      </section>
+
+      <div class="panelCta" style="justify-content:flex-start; gap:10px; flex-wrap:wrap;">
+        <button class="btn btn-primary" id="addProduct">Adicionar produto</button>
+        <button class="btn" id="saveProducts">Salvar</button>
+        <button class="btn" id="resetProducts">Voltar ao padrão</button>
+        <button class="btn" id="exportJson">Exportar JSON</button>
+        <label class="btn" style="cursor:pointer;">
+          Importar JSON
+          <input type="file" id="importJson" accept="application/json" style="display:none;">
+        </label>
+      </div>
+
+      <div class="adminTableWrap" style="margin-top:16px; overflow:auto; border:1px solid var(--border); border-radius:16px;">
+        <table class="adminTable" style="width:100%; border-collapse:collapse; min-width:860px;">
+          <thead>
+            <tr>
+              <th style="text-align:left; padding:12px 14px;">Ordem</th>
+              <th style="text-align:left; padding:12px 14px;">Categoria</th>
+              <th style="text-align:left; padding:12px 14px;">Nome</th>
+              <th style="text-align:left; padding:12px 14px;">Descrição</th>
+              <th style="text-align:left; padding:12px 14px;">Preço (R$)</th>
+              <th style="text-align:left; padding:12px 14px;">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+
+      <p class="muted" style="margin-top:12px;">Categorias: <strong>kits</strong>, <strong>avulsos</strong>, <strong>promocoes</strong>, <strong>novidades</strong>.</p>
+    </section>
+  </main>
+
+  <script src="/assets/admin.js"></script>
+</body>
+</html>

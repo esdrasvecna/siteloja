@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+
+<html lang="pt-br">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>Loja • StudioMind</title>
+<meta content="Loja premium de produtos e serviços. Carrinho e checkout rápido." name="description"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="./assets/style.css" rel="stylesheet"/>
+</head>
+<body>
+<header class="topbar">
+<div class="container topbar__inner">
+<a aria-label="Voltar ao topo" class="logo" href="#topo">
+<span class="logo__mark">M</span>
+<span class="logo__text">StudioMind</span>
+</a>
+<nav class="nav">
+<a href="#produtos">Produtos</a>
+<a href="#como-funciona">Como funciona</a>
+<a href="#faq">Dúvidas</a>
+</nav>
+<button class="btn btn--pill btn--accent cartBtn" id="cartBtnTop" type="button">CARRINHO<span class="cartBadge" id="cartCount">0</span></button>
+</div>
+</header>
+<main id="topo">
+<!-- HERO -->
+<section class="hero">
+<div class="container hero__grid">
+<div class="hero__left">
+<div class="chip">
+<span class="chip__dot"></span>
+<span class="chip__text">Carrinho + checkout rápido</span>
+</div>
+<h1 class="h1">
+            TENHA UMA <span class="accent">VITRINE</span><br/>
+            PROFISSIONAL PARA<br/>
+            VENDER MAIS.
+          </h1>
+<p class="lead">Uma vitrine premium para apresentar seus produtos e serviços, montar o carrinho e finalizar com pagamento seguro.</p>
+<div class="hero__actions">
+<button aria-label="Ver produtos" class="circleCta" id="scrollToProducts" type="button">
+<span class="circleCta__arrow">→</span>
+</button>
+<div class="hero__actionsText">
+<div class="hero__actionsTitle">MONTE SEU CARRINHO</div>
+<div class="muted">Clique e fale com a gente</div>
+</div>
+</div>
+<div class="hero__note muted">
+            *Você pode trocar cores, textos e produtos em minutos.
+          </div>
+</div>
+<div aria-hidden="true" class="hero__right">
+<div class="mosaic">
+<div class="tile tile--big">
+<div class="tile__overlay">
+<div class="tile__tag">Destaque</div>
+<div class="tile__title">Coleção Premium</div>
+</div>
+</div>
+<div class="tile tile--mid"></div>
+<div class="tile tile--mid tile--img2"></div>
+<div class="tile tile--small"></div>
+<div class="tile tile--small tile--img3"></div>
+</div>
+</div>
+</div>
+</section>
+<!-- TRUST CARDS -->
+<section class="section">
+<div class="container">
+<p class="kicker muted">
+          Criamos uma vitrine limpa e direta para marcas que querem vender com consistência.
+        </p>
+<div class="trustCards">
+<article class="trustCard">
+<div class="trustCard__top">
+<div class="trustIcons">
+<span class="trustIcon">★</span>
+<span class="trustIcon">✓</span>
+<span class="trustIcon">⚡</span>
+</div>
+</div>
+<div class="trustCard__title">Apresentação premium</div>
+<div class="trustCard__text muted">Cards e seções no padrão “landing”.</div>
+</article>
+<article class="trustCard">
+<div class="trustCard__top">
+<div class="flags">
+<span class="flag">BR</span>
+<span class="flag">PIX</span>
+<span class="flag">24H</span>
+<span class="flag">+</span>
+</div>
+</div>
+<div class="trustCard__title">Carrinho e Checkout</div>
+<div class="trustCard__text muted">O cliente escolhe e te chama.</div>
+</article>
+<article class="trustCard trustCard--highlight">
+<div class="trustCard__top">
+<div class="miniLogo">m</div>
+</div>
+<div class="trustCard__title">Foco em conversão</div>
+<div class="trustCard__text muted">CTA sempre visível no topo.</div>
+</article>
+</div>
+</div>
+</section>
+<!-- PRODUCTS -->
+<section class="section" id="produtos">
+<div class="container">
+<div class="sectionHead">
+<h2 class="h2">PRODUTOS EM DESTAQUE</h2>
+<div class="sectionHead__right muted">Adicione ao carrinho e finalize no checkout.</div>
+</div>
+<div aria-label="Categorias" class="tabs" id="categoryTabs" role="tablist"></div>
+<div class="carouselWrap" aria-label="Produtos">
+  <button class="carouselBtn prev" type="button" aria-label="Ver produtos anteriores">‹</button>
+  <div class="productCarousel" id="productGrid" tabindex="0" aria-label="Lista de produtos"></div>
+  <button class="carouselBtn next" type="button" aria-label="Ver próximos produtos">›</button>
+</div>
+</div>
+</section>
+<!-- HOW IT WORKS -->
+<section class="panel" id="como-funciona">
+<div class="container panel__inner">
+<h2 class="h2">UM FLUXO SIMPLES PRA VENDER</h2>
+<div class="steps">
+<article class="stepCard stepCard--light">
+<div class="stepChip">CATÁLOGO</div>
+<h3>Vitrine organizada</h3>
+<p>Cards com foto, preço e botão de pedido.</p>
+<div class="stepFooter">Clareza pra vender.</div>
+</article>
+<article class="stepCard stepCard--light">
+<div class="stepChip">WHATSAPP</div>
+<h3>Pedido em 1 clique</h3>
+<p>O cliente vai pro WhatsApp com o resumo do carrinho.</p>
+<div class="stepFooter">Conexão que converte.</div>
+</article>
+</div>
+<div class="panelCta">
+<button aria-label="Quero pedir no atendimento" class="circleCta" id="openCartPanel" type="button">
+<span class="circleCta__arrow">→</span>
+</button>
+<div class="panelCta__text">
+<div class="panelCta__title">QUERO COMPRAR AGORA</div>
+<div class="muted">Abra o carrinho para pagar ou tirar dúvidas</div>
+</div>
+</div>
+</div>
+</section>
+<!-- WHY US -->
+<section class="section" id="vantagens">
+<div class="container">
+<h2 class="h2">POR QUE COMPRAR COM A GENTE</h2>
+<div class="whyRow">
+<div class="whyItem">
+<div class="whyN muted">01</div>
+<div class="whyT">Qualidade comprovada</div>
+<div class="whyD muted">Produtos selecionados e bem apresentados.</div>
+</div>
+<div class="whyItem">
+<div class="whyN muted">02</div>
+<div class="whyT">Atendimento humano</div>
+<div class="whyD muted">Tira dúvidas e fecha em minutos.</div>
+</div>
+<div class="whyItem">
+<div class="whyN muted">03</div>
+<div class="whyT">Processo simples</div>
+<div class="whyD muted">Sem cadastro, sem enrolação.</div>
+</div>
+</div>
+<div class="guarantee">
+<div class="guarantee__badge">✓</div>
+<div>
+<div class="guarantee__title">GARANTIA DE SATISFAÇÃO</div>
+<div class="muted">Se algo não ficar como esperado, a gente resolve com você.</div>
+</div>
+</div>
+</div>
+</section>
+<!-- FAQ -->
+<section class="section" id="faq">
+<div class="container faq">
+<h2 class="h2">O QUE VOCÊ PRECISA SABER</h2>
+<div class="faqList">
+<details class="faqItem" open="">
+<summary>
+<span class="faqIcon">×</span>
+<span>COMO FAÇO UM PEDIDO?</span>
+</summary>
+<div class="faqBody muted">
+              Clique em “Adicionar ao carrinho” no produto que você quer. A mensagem já vai pronta com o item e a quantidade.
+            </div>
+</details>
+<details class="faqItem">
+<summary>
+<span class="faqIcon">+</span>
+<span>FORMAS DE PAGAMENTO?</span>
+</summary>
+<div class="faqBody muted">
+              Pix, cartão e outras opções (defina o que você usa). Você combina tudo no atendimento.
+            </div>
+</details>
+<details class="faqItem">
+<summary>
+<span class="faqIcon">+</span>
+<span>POSSO COMPRAR VÁRIOS ITENS?</span>
+</summary>
+<div class="faqBody muted">
+              Sim. Você pode pedir item por item ou usar o botão principal para mandar sua lista no atendimento.
+            </div>
+</details>
+</div>
+</div>
+</section>
+<!-- CONTACT -->
+</main>
+
+<div aria-hidden="true" class="cartDrawer" id="cartDrawer">
+<div class="cartDrawer__backdrop" id="cartBackdrop"></div>
+<aside aria-label="Carrinho" aria-modal="true" class="cartDrawer__panel" role="dialog">
+<div class="cartHeader">
+<div>
+<div class="cartTitle">Seu carrinho</div>
+<div class="cartSubtitle muted" id="cartSubtitle">0 itens</div>
+</div>
+<button aria-label="Fechar carrinho" class="iconBtn" id="cartClose" type="button">×</button>
+</div>
+<div class="cartBody">
+<div class="cartEmpty muted" id="cartEmpty">
+        Seu carrinho está vazio. Adicione um produto para começar.
+      </div>
+<div class="cartItems" id="cartItems"></div>
+</div>
+<div class="cartFooter">
+<div class="cartTotalRow">
+<span class="muted">Total</span>
+<strong id="cartTotal">R$ 0,00</strong>
+</div>
+<button class="btn btn--accent btn--pill" disabled="" id="btnCheckout" type="button">
+        PAGAR AGORA
+      </button>
+<button class="btn btn--ghost btn--pill" disabled="" id="btnsuporte" type="button">
+        ENTRAR EM CONTATO PRIMEIRO
+      </button>
+<div class="small muted">
+        Ao clicar em pagar, você será direcionado(a) ao checkout seguro.
+      </div>
+</div>
+</aside>
+</div>
+
+<!-- PRODUCT MODAL -->
+<div aria-hidden="true" class="productModal" id="productModal">
+  <div class="productModal__backdrop" id="productModalBackdrop"></div>
+  <aside aria-label="Detalhes do produto" aria-modal="true" class="productModal__panel" role="dialog">
+    <button aria-label="Fechar" class="iconBtn productModal__close" id="productModalClose" type="button">×</button>
+    <div class="productModal__content" id="productModalContent"></div>
+  </aside>
+</div>
+<script src="./assets/app.js"></script></body>
+</html>

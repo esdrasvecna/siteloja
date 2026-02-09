@@ -1,0 +1,44 @@
+[
+  {
+    "id": "p1",
+    "cat": "novidades",
+    "name": "Produto 01",
+    "desc": "Descrição curta e premium do produto.",
+    "priceCents": 12990
+  },
+  {
+    "id": "p2",
+    "cat": "promocoes",
+    "name": "Produto 02",
+    "desc": "Descrição curta e premium do produto.",
+    "priceCents": 8990
+  },
+  {
+    "id": "p3",
+    "cat": "kits",
+    "name": "Kit Identidade Visual Completo",
+    "desc": "Pacote completo para elevar sua identidade.",
+    "priceCents": 79990
+  },
+  {
+    "id": "p4",
+    "cat": "avulsos",
+    "name": "Logo Digital",
+    "desc": "Versão digital pronta para uso.",
+    "priceCents": 14990
+  },
+  {
+    "id": "p5",
+    "cat": "avulsos",
+    "name": "Material Impresso",
+    "desc": "Cartões, panfletos e peças gráficas.",
+    "priceCents": 24990
+  },
+  {
+    "id": "p6",
+    "cat": "avulsos",
+    "name": "Fachada",
+    "desc": "Arte e orientação para fachada.",
+    "priceCents": 39990
+  }
+]
