@@ -87,55 +87,117 @@ import { db, auth, firebaseReady } from "./firebase.js";
 (async () => {
   const $ = (s) => document.querySelector(s);
 
-  // --- Login simples ---
-  // Troque a senha abaixo para uma senha sua.
-  const ADMIN_PASSWORD = "studiomind2026";
-  const AUTH_KEY = "adminAuth"; // sessionStorage
+  // --- Login (Firebase Auth) ---
+// Requer Authentication (Email/Senha) habilitado no Firebase.
+let authReady = false;
+let authMod = null;
 
-  function setAuthed(v){
-    if(v) sessionStorage.setItem(AUTH_KEY, "1");
-    else sessionStorage.removeItem(AUTH_KEY);
-  }
+async function authApi(){
+  if(authMod) return authMod;
+  authMod = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js");
+  return authMod;
+}
 
-  function isAuthed(){
-    return sessionStorage.getItem(AUTH_KEY) === "1";
+function showPanels(authed){
+  const login = $("#loginPanel");
+  const admin = $("#adminPanel");
+  if(authed){
+    login.style.display = "none";
+    admin.style.display = "";
+  }else{
+    login.style.display = "";
+    admin.style.display = "none";
   }
+}
 
-  function showPanels(){
-    const login = $("#loginPanel");
-    const admin = $("#adminPanel");
-    if(!login || !admin) return;
-    const ok = isAuthed();
-    login.style.display = ok ? "none" : "block";
-    admin.style.display = ok ? "block" : "none";
-  }
+function setLoginHint(msg){
+  const el = $("#loginHint");
+  if(!el) return;
+  if(!msg){ el.style.display="none"; el.textContent=""; return; }
+  el.style.display="";
+  el.textContent = msg;
+}
 
   function wireLogin(){
+    const email = $("#adminEmail");
     const pass = $("#adminPass");
     const btn = $("#adminLogin");
-    if(!pass || !btn) return;
+    if(!btn) return;
 
-    const tryLogin = () => {
-      const value = String(pass.value || "").trim();
-      if(value === ADMIN_PASSWORD){
-        setAuthed(true);
-        pass.value = "";
-        showPanels();
-        // render é chamado no final do arquivo
-      }else{
-        alert("Senha incorreta.");
-        pass.focus();
+    const doLogin = async () => {
+      setLoginHint("");
+      if(!firebaseReady || !auth){
+        setLoginHint("Firebase não configurado. Preencha /assets/firebase-config.js e publique novamente.");
+        return;
+      }
+      const e = String(email?.value || "").trim();
+      const p = String(pass?.value || "").trim();
+      if(!e || !p){
+        setLoginHint("Informe email e senha.");
+        return;
+      }
+      try{
+        const { signInWithEmailAndPassword } = await authApi();
+        await signInWithEmailAndPassword(auth, e, p);
+        if(pass) pass.value = "";
+      }catch(err){
+        console.warn(err);
+        setLoginHint("Não foi possível entrar. Verifique email/senha e se o login por Email/Senha está ativado no Firebase.");
       }
     };
 
-    btn.addEventListener("click", tryLogin);
-    pass.addEventListener("keydown", (e) => {
-      if(e.key === "Enter") tryLogin();
-    });
+    btn.addEventListener("click", doLogin);
+    pass?.addEventListener("keydown", (ev)=>{ if(ev.key==="Enter") doLogin(); });
+    email?.addEventListener("keydown", (ev)=>{ if(ev.key==="Enter") doLogin(); });
   }
 
   wireLogin();
-  showPanels();
+
+  // Botão sair (opcional)
+  try{
+    const adminPanel = $("#adminPanel");
+    if(adminPanel && !document.querySelector('#adminLogout')){
+      const btn = document.createElement('button');
+      btn.id='adminLogout';
+      btn.className='btn';
+      btn.textContent='Sair';
+      btn.style.marginLeft='auto';
+      btn.addEventListener('click', async ()=>{
+        try{
+          const { signOut } = await authApi();
+          await signOut(auth);
+        }catch(e){ console.warn(e); }
+      });
+      // coloca no topo do painel
+      const topRow = document.createElement('div');
+      topRow.style.display='flex';
+      topRow.style.alignItems='center';
+      topRow.style.gap='12px';
+      const title = adminPanel.querySelector('h1.panelTitle');
+      if(title){
+        title.parentNode.insertBefore(topRow, title);
+        topRow.appendChild(title);
+        topRow.appendChild(btn);
+      }else{
+        adminPanel.prepend(btn);
+      }
+    }
+  }catch{}
+
+  // Observa login do Firebase e alterna telas
+  try{
+    if(firebaseReady && auth){
+      const { onAuthStateChanged } = await authApi();
+      onAuthStateChanged(auth, (user)=>{ showPanels(!!user); });
+    }else{
+      showPanels(false);
+      setLoginHint("Firebase não configurado. Preencha /assets/firebase-config.js e publique novamente.");
+    }
+  }catch(e){
+    console.warn(e);
+    showPanels(false);
+  }
+
 
   const formatMoney = (cents) => (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const parsePriceToCents = (value) => {
