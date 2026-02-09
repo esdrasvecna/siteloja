@@ -590,11 +590,7 @@ async function startCheckout(){
     const res = await fetch("/.netlify/functions/create-checkout-session",{
       method:"POST",
       headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({
-        items,
-        successUrl: `${window.location.origin}/?pagamento=sucesso`,
-        cancelUrl: `${window.location.origin}/?pagamento=cancelado`
-      })
+      body: JSON.stringify({ items })
     });
 
     const data = await res.json();
@@ -640,14 +636,43 @@ btnWhatsApp?.addEventListener("click", ()=>{
 
 /* ------------------------- Pós-checkout ------------------------- */
 
-// Aviso simples pós-checkout (opcional)
-(() => {
-  const p = new URLSearchParams(window.location.search).get("pagamento");
-  if(p === "sucesso") alert("Pagamento confirmado! Obrigado(a). Em instantes você recebe a confirmação.");
-  if(p === "cancelado") alert("Pagamento cancelado. Se quiser, finalize pelo carrinho quando estiver pronto(a).");
+// Confirmação real do pagamento (server-side) usando o session_id do Stripe
+(async () => {
+  const qs = new URLSearchParams(window.location.search);
+  const p = qs.get("pagamento");
+
+  if (p === "cancelado") {
+    alert("Pagamento cancelado. Se quiser, finalize pelo carrinho quando estiver pronto(a).");
+    return;
+  }
+
+  if (p !== "sucesso") return;
+
+  const sessionId = qs.get("session_id");
+  if (!sessionId) {
+    alert("Quase lá! Não encontrei o identificador do pagamento. Se o valor foi debitado, fale com a gente.");
+    return;
+  }
+
+  try {
+    const res = await fetch(`/.netlify/functions/verify-session?session_id=${encodeURIComponent(sessionId)}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.error || "Não foi possível validar o pagamento.");
+
+    if (data.payment_status === "paid") {
+      alert("Pagamento confirmado! Obrigado(a). Em instantes você recebe a confirmação.");
+      // Opcional: limpar carrinho automaticamente
+      // clearCart();
+    } else {
+      alert("Recebemos seu retorno, mas o pagamento ainda não está marcado como 'pago'. Se foi via Pix, pode levar alguns instantes.");
+    }
+  } catch (err) {
+    alert(err.message || "Erro ao validar pagamento.");
+  }
 })();
 
 /* ------------------------- Init ------------------------- */
+
 
 /* ------------------------- Testimonials ------------------------- */
 async function loadTestimonialsFromFirestore(){
