@@ -266,106 +266,81 @@ function setLoginHint(msg){
     `).join("");
   }
 
-  function wireCategories(){
-    const add = $("#addCategory");
-    const save = $("#saveCategories");
-    if(add){
-      add.addEventListener("click", () => {
-        const label = prompt("Nome da categoria:");
-        if(!label) return;
-        let id = slugify(label);
-        const used = new Set(categories.map(c => c.id));
-        if(used.has(id)){
-          let n = 2;
-          while(used.has(`${id}-${n}`)) n++;
-          id = `${id}-${n}`;
-        }
-        categories.push({ id, label: label.toUpperCase() });
-      
-// --- Bootstrap (carrega Firestore se estiver configurado) ---
-// 1) tenta Firestore
-// 2) se vazio/indisponível, usa localStorage/products.json
-try{
-  if(firebaseReady){
-    const fsCats = await fsLoadCategories();
-    if(Array.isArray(fsCats) && fsCats.length){
-      categories = fsCats;
-      // também salva local para fallback
+
+function wireCategories(){
+  const add = $("#addCategory");
+  const save = $("#saveCategories");
+
+  if(add){
+    add.addEventListener("click", () => {
+      const label = prompt("Nome da categoria:");
+      if(!label) return;
+      let id = slugify(label);
+      const used = new Set(categories.map(c => c.id));
+      if(used.has(id)){
+        let n = 2;
+        while(used.has(`${id}-${n}`)) n++;
+        id = `${id}-${n}`;
+      }
+      categories.push({ id, label: label.toUpperCase() });
       saveCategories();
-    }
-    const fsProds = await fsLoadProducts();
-    if(Array.isArray(fsProds) && fsProds.length){
-      products = fsProds;
-      // salva local para fallback
-      try{ localStorage.setItem("customProducts", JSON.stringify(products)); }catch{}
-    }else{
-      products = loadProducts();
-    }
-  }else{
-    products = loadProducts();
+      renderCategories();
+      render(); // atualiza selects na tabela
+    });
   }
-}catch(e){
-  console.warn(e);
-  products = loadProducts();
+
+  if(save){
+    save.addEventListener("click", () => {
+      saveCategories();
+      alert("Categorias salvas.");
+    });
+  }
+
+  const box = $("#categoriesList");
+  if(!box) return;
+
+  box.addEventListener("input", (e) => {
+    const el = e.target;
+    const k = el?.dataset?.cK;
+    const i = Number(el?.dataset?.cI);
+    if(k === "label" && Number.isFinite(i) && categories[i]){
+      categories[i].label = String(el.value || "").trim() || categories[i].id;
+    }
+  });
+
+  box.addEventListener("click", (e) => {
+    const btn = e.target?.closest?.("button[data-c-act]");
+    if(!btn) return;
+    const act = btn.dataset.cAct;
+    const i = Number(btn.dataset.cI);
+    if(!Number.isFinite(i)) return;
+
+    if(act === "delete" && categories[i]){
+      const ok = confirm(`Remover a categoria "${categories[i].label}"?`);
+      if(!ok) return;
+      const removed = categories.splice(i,1)[0];
+      // Move produtos dessa categoria para "todos" para não sumirem
+      products = products.map(p => (p.cat === removed.id ? { ...p, cat: "todos" } : p));
+      saveCategories();
+      renderCategories();
+      render();
+    }
+
+    if(act === "up" && i > 0){
+      const tmp = categories[i-1]; categories[i-1]=categories[i]; categories[i]=tmp;
+      saveCategories();
+      renderCategories();
+      render();
+    }
+
+    if(act === "down" && i < categories.length-1){
+      const tmp = categories[i+1]; categories[i+1]=categories[i]; categories[i]=tmp;
+      saveCategories();
+      renderCategories();
+      render();
+    }
+  });
 }
-
-  renderCategories();
-        render(); // atualiza selects na tabela
-      });
-    }
-    if(save){
-      save.addEventListener("click", () => {
-        saveCategories();
-        alert("Categorias salvas.");
-      });
-    }
-
-    const box = $("#categoriesList");
-    if(box){
-      box.addEventListener("input", (e) => {
-        const el = e.target;
-        const k = el?.dataset?.cK;
-        const i = Number(el?.dataset?.cI);
-        if(k === "label" && Number.isFinite(i) && categories[i]){
-          categories[i].label = String(el.value || "").trim() || categories[i].id;
-        }
-      });
-
-      box.addEventListener("click", (e) => {
-        const btn = e.target?.closest?.("button[data-c-act]");
-        if(!btn) return;
-        const act = btn.dataset.cAct;
-        const i = Number(btn.dataset.cI);
-        if(!Number.isFinite(i)) return;
-
-        if(act === "delete"){
-          if(confirm("Remover categoria? (Produtos com essa categoria continuarão com o ID salvo)")){
-            categories.splice(i,1);
-          }
-        }
-        if(act === "up" && i>0){
-          const tmp = categories[i-1]; categories[i-1]=categories[i]; categories[i]=tmp;
-        }
-        if(act === "down" && i<categories.length-1){
-          const tmp = categories[i+1]; categories[i+1]=categories[i]; categories[i]=tmp;
-        }
-        renderCategories();
-        render();
-      });
-    }
-  }
-
-  function categoryOptionsHtml(selected){
-    const opts = categories.map(c => {
-      const sel = c.id === selected ? "selected" : "";
-      return `<option value="${escapeHtml(c.id)}" ${sel}>${escapeHtml(c.label)}</option>`;
-    }).join("");
-    // se o produto estiver com uma categoria que não existe mais, mantém como opção
-    if(selected && !categories.some(c => c.id === selected)){
-      return `<option value="${escapeHtml(selected)}" selected>${escapeHtml(selected)} (não cadastrada)</option>` + opts;
-    }
-    return `<option value="avulsos" ${selected==="avulsos"?"selected":""}>AVULSOS</option>` + opts;
-  }
 
   function render() {
     ensureIds();
