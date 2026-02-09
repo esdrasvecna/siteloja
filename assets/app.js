@@ -15,32 +15,8 @@ function loadCustomProducts(){
     const raw = localStorage.getItem(CUSTOM_PRODUCTS_KEY);
     if(!raw) return null;
     const parsed = JSON.parse(raw);
-
-    // Formatos aceitos:
-    // 1) Array de produtos
-    // 2) Objeto { products: [...] } (legado/importação)
-    const arr = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.products) ? parsed.products : null);
-    if(!arr || arr.length === 0) return null;
-
-    // Migração leve de campos legados
-    return arr.map((p, idx) => {
-      const obj = (p && typeof p === "object") ? p : {};
-      const id = String(obj.id || obj.sku || `p${idx+1}`);
-      const cat = String(obj.cat || obj.category || obj.categoria || "avulsos");
-      const name = String(obj.name || obj.title || obj.nome || "Produto");
-      const desc = String(obj.desc || obj.description || obj.descricao || "");
-      let priceCents = obj.priceCents;
-      if(priceCents == null){
-        const br = obj.price ?? obj.preco;
-        if(typeof br === "number") priceCents = Math.round(br * 100);
-        else if(typeof br === "string"){
-          const num = Number(String(br).replace(/[R$\s]/g,"").replace(".","").replace(",","."));
-          if(!Number.isNaN(num)) priceCents = Math.round(num * 100);
-        }
-      }
-      priceCents = Number.isFinite(Number(priceCents)) ? Number(priceCents) : 0;
-      return { id, cat, name, desc, priceCents };
-    });
+    if(!Array.isArray(parsed) || parsed.length === 0) return null;
+    return parsed;
   }catch{
     return null;
   }
@@ -621,39 +597,4 @@ btnWhatsApp?.addEventListener("click", ()=>{
   wireTabs();
   setActiveTab("todos");
   syncCartUI();
-})();
-
-// --- Hidden admin access (clique no logo várias vezes) ---
-(function wireHiddenAdmin(){
-  const logo = document.querySelector(".logo");
-  if(!logo) return;
-
-  let clicks = 0;
-  let timer = null;
-
-  const reset = () => {
-    clicks = 0;
-    if(timer){ clearTimeout(timer); timer = null; }
-  };
-
-  logo.addEventListener("click", (e) => {
-    // evita que o comportamento normal do link atrapalhe a contagem
-    e.preventDefault();
-
-    clicks += 1;
-
-    if(!timer){
-      timer = setTimeout(reset, 1400); // janela de tempo para os cliques
-    }
-
-    // 7 cliques rápidos no logo abre o admin
-    if(clicks >= 7){
-      reset();
-      window.location.href = "./admin.html";
-      return;
-    }
-
-    // volta ao topo (comportamento original)
-    try{ window.location.hash = "#topo"; }catch(_){}
-  });
 })();
