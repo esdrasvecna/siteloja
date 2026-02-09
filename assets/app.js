@@ -1,6 +1,5 @@
 // assets/app.js
 import { db, firebaseReady } from "./firebase.js";
-import { collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 // Loja com carrinho (LocalStorage) + checkout + contato via WhatsApp.
 
 // WhatsApp do atendimento (formato: 55DDDNÚMERO, sem + e sem espaços)
@@ -10,7 +9,7 @@ const WHATSAPP_NUMBER = "5564999076197";
 const PRODUCTS_URL = "./assets/products.json";
 
 const CUSTOM_PRODUCTS_KEY = "customProducts"; 
-const FIRESTORE_ONLY = false; // permite fallback (products.json) se Firestore falhar
+const FIRESTORE_ONLY = true; // NÃO carregar products.json/localStorage
 // usado pela página /admin.html
 const CATEGORIES_KEY = "storeCategories"; // usado pelo /admin.html
 
@@ -27,57 +26,6 @@ function loadCustomProducts(){
   }
 }
 
-
-
-// ------------------------- Firestore helpers -------------------------
-// Lê categorias do Firestore (se configurado). Retorna null se não disponível.
-async function loadCategoriesFromFirestore(){
-  if(!firebaseReady) return null;
-  try{
-    const snap = await getDocs(query(collection(db,"categories"), orderBy("order","asc")));
-    const out=[];
-    snap.forEach(d=>{
-      const data=d.data()||{};
-      out.push({ id: d.id, label: String(data.label||d.id) });
-    });
-    return out.length ? out : null;
-  }catch(e){
-    console.warn("[firestore] categorias: falha ao ler. Verifique Rules (leitura pública) e se a coleção é categories.", e);
-    return null;
-  }
-}
-
-// Lê produtos do Firestore (se configurado). Retorna null se não disponível.
-async function loadProductsFromFirestore(){
-  if(!firebaseReady) return null;
-  try{
-    const snap = await getDocs(query(collection(db,"products"), orderBy("order","asc")));
-    const out=[];
-    snap.forEach(d=>{
-      const data=d.data()||{};
-      if(data.active === false) return;
-      let priceCents = Number(data.priceCents);
-      if(!Number.isFinite(priceCents)){
-        const p = Number(data.price);
-        priceCents = Number.isFinite(p) ? Math.round(p*100) : 0;
-      }
-      out.push({
-        id: data.id || d.id,
-        cat: data.cat || data.category || "novidades",
-        name: String(data.name||""),
-        desc: String(data.desc||""),
-        image: data.image ? String(data.image) : "",
-        priceCents: Math.max(0, Math.round(priceCents)),
-        order: Number.isFinite(Number(data.order)) ? Number(data.order) : 0,
-        _docId: d.id,
-      });
-    });
-    return out.length ? out : null;
-  }catch(e){
-    console.warn("[firestore] produtos: falha ao ler. Verifique Rules (leitura pública) e se a coleção é products.", e);
-    return null;
-  }
-}
 
 function slugifyCategory(label){
   return String(label||"")
@@ -213,6 +161,58 @@ function setQty(id, qty){
   item.qty = clampInt(qty, 1, 99);
   saveCart(cart);
   syncCartUI();
+}
+
+
+/* ------------------------- Firestore (catálogo) ------------------------- */
+let _fsMod = null;
+async function fs(){
+  if(_fsMod) return _fsMod;
+  _fsMod = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js");
+  return _fsMod;
+}
+
+async function loadCategoriesFromFirestore(){
+  if(!firebaseReady || !db) return null;
+  try{
+    const { collection, getDocs, query, orderBy } = await fs();
+    const snap = await getDocs(query(collection(db,"categories"), orderBy("order","asc")));
+    const out = [];
+    snap.forEach(d=>{
+      const data = d.data() || {};
+      out.push({ id: d.id, label: data.label || d.id, order: Number(data.order ?? 9999) });
+    });
+    return out.length ? out : null;
+  }catch(err){
+    console.warn("[firestore] categorias:", err);
+    return null;
+  }
+}
+
+async function loadProductsFromFirestore(){
+  if(!firebaseReady || !db) return null;
+  try{
+    const { collection, getDocs, query, orderBy } = await fs();
+    const snap = await getDocs(query(collection(db,"products"), orderBy("order","asc")));
+    const out = [];
+    snap.forEach(d=>{
+      const data = d.data() || {};
+      if(data.active === false) return;
+      out.push({
+        id: d.id,
+        cat: data.cat || "avulsos",
+        name: data.name || "",
+        desc: data.desc || "",
+        priceCents: Number(data.priceCents ?? 0),
+        order: Number(data.order ?? 9999),
+        active: data.active !== false
+      });
+    });
+    return out.length ? out : null;
+  }catch(err){
+    console.warn("[firestore] produtos:", err);
+    return null;
+  }
 }
 
 /* ------------------------- Products render ------------------------- */

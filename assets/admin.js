@@ -1,440 +1,640 @@
 // assets/admin.js
 import { db, auth, firebaseReady } from "./firebase.js";
-import { collection, getDocs, query, orderBy, doc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-import { signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
-const $ = (sel) => document.querySelector(sel);
-
-const loginPanel = $("#loginPanel");
-const adminPanel = $("#adminPanel");
-const emailEl = $("#adminEmail");
-const passEl = $("#adminPass");
-const loginBtn = $("#adminLogin");
-const loginHint = $("#loginHint");
-const logoutBtn = $("#adminLogout");
-const userBadge = $("#adminUserBadge");
-
-const categoriesList = $("#categoriesList");
-const addCategoryBtn = $("#addCategory");
-const saveCategoriesBtn = $("#saveCategories");
-
-const rowsEl = $("#rows");
-const addProductBtn = $("#addProduct");
-const saveProductsBtn = $("#saveProducts");
-const exportJsonBtn = $("#exportJson");
-const importJsonInput = $("#importJson");
+const $ = (s) => document.querySelector(s);
 
 let categories = [];
-let products = []; // { _docId?, id, cat, name, desc, image, priceCents, order, active }
+let products = [];
 
-function slugify(label){
-  return String(label||"")
-    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
-    .toLowerCase().trim()
-    .replace(/[^a-z0-9]+/g,"-")
-    .replace(/(^-|-$)/g,"") || "categoria";
+let filterText = "";
+let filterCat = "all";
+let filterOnlyActive = true;
+
+let firestoreMod = null;
+let authMod = null;
+
+async function fs(){
+  if(firestoreMod) return firestoreMod;
+  firestoreMod = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js");
+  return firestoreMod;
+}
+async function fa(){
+  if(authMod) return authMod;
+  authMod = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js");
+  return authMod;
 }
 
-function sortCats(list){
-  return [...list].sort((a,b)=>{
-    const ao = Number.isFinite(+a.order) ? +a.order : 9999;
-    const bo = Number.isFinite(+b.order) ? +b.order : 9999;
-    if(ao!==bo) return ao-bo;
-    return String(a.label||"").localeCompare(String(b.label||""), "pt-BR");
+/* ------------------------- Toast ------------------------- */
+function showToast(title, msg = "", ms = 1600){
+  const host = $("#toastHost");
+  if(!host) return;
+
+  const el = document.createElement("div");
+  el.className = "toast";
+  el.innerHTML = `
+    <div class="tTitle">${escapeHtml(title)}</div>
+    ${msg ? `<div class="tMsg">${escapeHtml(msg)}</div>` : ""}
+  `;
+  host.appendChild(el);
+
+  const t = setTimeout(() => {
+    el.style.opacity = "0";
+    el.style.transform = "translateY(6px)";
+    setTimeout(() => el.remove(), 180);
+  }, ms);
+
+  el.addEventListener("click", ()=>{
+    clearTimeout(t);
+    el.remove();
   });
+}
+
+function escapeHtml(s){
+  return String(s ?? "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+/* ------------------------- UI helpers ------------------------- */
+function showPanels(authed){
+  const login = $("#loginPanel");
+  const adminPanel = $("#adminPanel");
+  const logout = $("#btnLogout");
+
+  if(authed){
+    login && (login.style.display = "none");
+    adminPanel && (adminPanel.style.display = "");
+    logout && (logout.style.display = "");
+  }else{
+    login && (login.style.display = "");
+    adminPanel && (adminPanel.style.display = "none");
+    logout && (logout.style.display = "none");
+  }
+}
+
+function setLoginHint(msg){
+  const el = $("#loginHint");
+  if(!el) return;
+  if(!msg){
+    el.style.display = "none";
+    el.textContent = "";
+    return;
+  }
+  el.style.display = "";
+  el.textContent = msg;
+}
+
+function slugify(str){
+  return String(str || "")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")
+    .slice(0, 60) || "categoria";
+}
+
+function currencyToCents(v){
+  const s = String(v ?? "").trim().replace(/\./g,"").replace(",",".");
+  const n = Number(s);
+  if(!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.round(n * 100));
+}
+
+function centsToCurrency(cents){
+  const n = Number(cents || 0) / 100;
+  return n.toFixed(2).replace(".", ",");
+}
+
+function updateStats(){
+  $("#statProducts") && ($("#statProducts").textContent = String(products.length));
+  $("#statCats") && ($("#statCats").textContent = String(categories.length));
+  const activeCount = products.filter(p => p.active !== false).length;
+  $("#statActive") && ($("#statActive").textContent = String(activeCount));
 }
 
 function categoryOptionsHtml(selected){
-  const sorted = sortCats(categories.map((c,i)=>({ ...c, order: c.order ?? i })));
-  const opts = sorted.map(c=>{
-    const sel = (c.id === selected) ? "selected" : "";
-    return `<option value="${c.id}" ${sel}>${c.label}</option>`;
-  }).join("");
-  return opts || `<option value="novidades" selected>NOVIDADES</option>`;
+  const opts = [
+    `<option value="all">Todas</option>`,
+    ...categories.map(c => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.label)}</option>`)
+  ].join("");
+  if($("#filterCat")) $("#filterCat").innerHTML = opts;
+
+  // para selects em cada linha
+  return categories.map(c => `
+    <option value="${escapeHtml(c.id)}" ${c.id === selected ? "selected":""}>${escapeHtml(c.label)}</option>
+  `).join("");
 }
 
-function moneyToCents(brStr){
-  // aceita "12,34" ou "12.34"
-  const s = String(brStr||"").trim().replace(/\./g,"").replace(",", ".");
-  const v = Number(s);
-  return Number.isFinite(v) ? Math.round(v*100) : 0;
-}
-function centsToMoney(cents){
-  const v = (Number(cents||0)/100);
-  return v.toFixed(2).replace(".", ",");
-}
-
-function setHint(msg, isError=false){
-  loginHint.style.display = "block";
-  loginHint.textContent = msg;
-  loginHint.style.color = isError ? "var(--danger)" : "var(--muted)";
-}
-
-async function ensureFirebase(){
-  if(firebaseReady) return true;
-  setHint("Firebase não inicializado. Verifique assets/firebase-config.js", true);
-  return false;
-}
-
-/* ------------------------- Auth ------------------------- */
-async function login(){
-  if(!(await ensureFirebase())) return;
-  const email = (emailEl.value||"").trim();
-  const pass = passEl.value||"";
-  if(!email || !pass){ setHint("Preencha email e senha.", true); return; }
-  try{
-    await signInWithEmailAndPassword(auth, email, pass);
-    setHint("Login ok.");
-  }catch(e){
-    console.warn(e);
-    setHint("Falha no login. Confira email/senha e as permissões.", true);
-  }
-}
-
-async function logout(){
-  try{
-    await signOut(auth);
-  }catch(e){
-    console.warn(e);
-  }
-}
-
-async function watchAuth(){
-  if(!(await ensureFirebase())) return;
-  onAuthStateChanged(auth, async (user)=>{
-    const logged = !!user;
-    loginPanel.style.display = logged ? "none" : "block";
-    adminPanel.style.display = logged ? "block" : "none";
-    if(userBadge){ userBadge.textContent = user ? user.email : ""; userBadge.style.display = logged ? "inline-flex" : "none"; }
-    if(logoutBtn) logoutBtn.style.display = logged ? "inline-flex" : "none";
-    if(logged){
-      await loadAll();
-      renderAll();
-    }
-  });
-}
-
-/* ------------------------- Firestore I/O ------------------------- */
-async function loadCategoriesFS(){
-  const snap = await getDocs(query(collection(db,"categories"), orderBy("order","asc")));
-  const out=[];
-  snap.forEach(d=>{
-    const data=d.data()||{};
-    out.push({ id: d.id, label: String(data.label||d.id), order: Number(data.order??9999) });
+/* ------------------------- Firestore IO ------------------------- */
+async function loadCategories(){
+  if(!firebaseReady) return [];
+  const { collection, getDocs, query, orderBy } = await fs();
+  const snap = await getDocs(query(collection(db, "categories"), orderBy("order","asc")));
+  const out = [];
+  snap.forEach(d => {
+    const data = d.data() || {};
+    out.push({
+      id: d.id,
+      label: data.label || d.id,
+      order: Number(data.order ?? 9999)
+    });
   });
   return out;
 }
 
-async function saveCategoriesFS(newCats){
-  const col = collection(db,"categories");
-  const existing = await getDocs(col);
-  const keepIds = new Set(newCats.map(c=>c.id));
-  const batch = writeBatch(db);
-
-  // deletar removidas
-  existing.forEach(d=>{
-    if(!keepIds.has(d.id)){
-      batch.delete(doc(db,"categories", d.id));
-    }
-  });
-
-  // setar/atualizar em ordem
-  newCats.forEach((c, idx)=>{
-    batch.set(doc(db,"categories", c.id), { label: c.label, order: idx }, { merge:true });
-  });
-
-  await batch.commit();
-}
-
-async function loadProductsFS(){
-  const snap = await getDocs(query(collection(db,"products"), orderBy("order","asc")));
-  const out=[];
-  snap.forEach(d=>{
-    const data=d.data()||{};
+async function loadProducts(){
+  if(!firebaseReady) return [];
+  const { collection, getDocs, query, orderBy } = await fs();
+  const snap = await getDocs(query(collection(db, "products"), orderBy("order","asc")));
+  const out = [];
+  snap.forEach(d => {
+    const data = d.data() || {};
     out.push({
-      _docId: d.id,
-      id: data.id || d.id,
-      cat: data.cat || "novidades",
-      name: String(data.name||""),
-      desc: String(data.desc||""),
-      image: data.image ? String(data.image) : "",
-      priceCents: Number.isFinite(+data.priceCents) ? +data.priceCents : 0,
-      order: Number.isFinite(+data.order) ? +data.order : 0,
+      id: d.id,
+      cat: data.cat || "avulsos",
+      name: data.name || "",
+      desc: data.desc || "",
+      priceCents: Number(data.priceCents ?? 0),
+      order: Number(data.order ?? 9999),
       active: data.active !== false
     });
   });
   return out;
 }
 
-async function saveProductsFS(newProducts){
-  const col = collection(db,"products");
-  const existing = await getDocs(col);
-  const keep = new Set(newProducts.map(p=>p._docId).filter(Boolean));
+async function saveCategories(){
+  if(!firebaseReady) throw new Error("Firebase não configurado.");
+  const { doc, writeBatch } = await fs();
+
+  // reordena por posição atual
+  categories = categories.map((c, idx) => ({ ...c, order: idx }));
+
   const batch = writeBatch(db);
-
-  // deletar removidos (somente docs que existiam)
-  existing.forEach(d=>{
-    if(!keep.has(d.id)){
-      batch.delete(doc(db,"products", d.id));
-    }
+  categories.forEach((c) => {
+    batch.set(doc(db, "categories", c.id), { label: c.label, order: c.order }, { merge: true });
   });
-
-  // set/merge cada produto
-  newProducts.forEach((p, idx)=>{
-    const docId = p._docId || p.id || undefined;
-    const ref = docId ? doc(db,"products", docId) : doc(col); // doc() gera id
-    const finalId = ref.id;
-    batch.set(ref, {
-      id: finalId,
-      cat: p.cat || "novidades",
-      name: p.name || "",
-      desc: p.desc || "",
-      image: p.image || "",
-      priceCents: Math.max(0, Math.round(+p.priceCents || 0)),
-      order: idx,
-      active: p.active !== false
-    }, { merge:true });
-    p._docId = finalId;
-    p.id = finalId;
-  });
-
   await batch.commit();
 }
 
-/* ------------------------- UI: Categorias ------------------------- */
+async function saveProducts(){
+  if(!firebaseReady) throw new Error("Firebase não configurado.");
+  const { doc, writeBatch } = await fs();
+
+  // ordem do jeito que está na lista
+  products = products.map((p, idx) => ({ ...p, order: idx }));
+
+  const batch = writeBatch(db);
+  products.forEach((p) => {
+    batch.set(doc(db, "products", p.id), {
+      cat: p.cat,
+      name: p.name,
+      desc: p.desc,
+      priceCents: Number(p.priceCents ?? 0),
+      order: p.order,
+      active: p.active !== false
+    }, { merge: true });
+  });
+  await batch.commit();
+}
+
+async function deleteProduct(id){
+  if(!firebaseReady) throw new Error("Firebase não configurado.");
+  const { doc, deleteDoc } = await fs();
+  await deleteDoc(doc(db, "products", id));
+}
+
+async function importFromProductsJson(){
+  // importa assets/products.json para o Firestore (útil se a vitrine tinha um catálogo padrão)
+  const res = await fetch("./assets/products.json", { cache: "no-store" });
+  if(!res.ok) throw new Error("Não consegui ler assets/products.json");
+  const list = await res.json();
+  if(!Array.isArray(list)) throw new Error("products.json inválido");
+
+  const { doc, writeBatch, collection } = await fs();
+
+  // cria ids novos para não conflitar se já existir
+  const batch = writeBatch(db);
+  list.forEach((p, idx) => {
+    const id = p.id ? String(p.id) : doc(collection(db, "products")).id;
+    batch.set(doc(db, "products", id), {
+      cat: p.cat || "avulsos",
+      name: p.name || "",
+      desc: p.desc || "",
+      priceCents: Number(p.priceCents ?? 0),
+      order: idx,
+      active: p.active !== false
+    }, { merge: true });
+  });
+  await batch.commit();
+}
+
+/* ------------------------- Render ------------------------- */
 function renderCategories(){
-  const sorted = sortCats(categories.map((c,i)=>({ ...c, order: c.order ?? i })));
-  categoriesList.innerHTML = sorted.map((c, idx)=>`
-    <div class="catRow" data-id="${c.id}">
-      <div class="field">
-        <label>Nome</label>
-        <input class="input" value="${escapeHtml(c.label)}" data-role="label" />
+  const el = $("#categoriesList");
+  if(!el) return;
+
+  el.innerHTML = categories.map((c, idx) => `
+    <div class="catRow" data-id="${escapeHtml(c.id)}">
+      <div class="catId">${escapeHtml(c.id)}</div>
+      <label class="adminField" style="margin:0;">
+        <span>Nome</span>
+        <input class="input" data-cat-label value="${escapeHtml(c.label)}" />
+      </label>
+      <div class="catActions">
+        <button class="miniBtn" data-cat-act="up" ${idx===0 ? "disabled":""} title="Subir">↑</button>
+        <button class="miniBtn" data-cat-act="down" ${idx===categories.length-1 ? "disabled":""} title="Descer">↓</button>
+        <button class="miniBtn miniBtn--danger" data-cat-act="del" title="Remover">Remover</button>
       </div>
-      <div class="field" style="max-width:140px;">
-        <label>Ordem</label>
-        <input class="input" type="number" value="${idx}" min="0" data-role="order" />
-      </div>
-      <div class="field" style="align-self:end;">
-        <button class="btn btn-danger" data-role="remove">Remover</button>
-      </div>
-      <div class="muted" style="grid-column:1/-1; font-size:12px;">ID: <strong>${c.id}</strong></div>
     </div>
   `).join("");
+
+  categoryOptionsHtml();
+  updateStats();
 }
 
-function collectCategoriesFromUI(){
-  const rows = Array.from(categoriesList.querySelectorAll(".catRow"));
-  const out=[];
-  for(const r of rows){
-    const label = r.querySelector('[data-role="label"]').value.trim();
-    if(!label) continue;
-    const order = Number(r.querySelector('[data-role="order"]').value||0);
-    const id = slugify(label);
-    out.push({ id, label: label.toUpperCase(), order });
-  }
-  // garantir ids únicos
-  const seen = new Set();
-  const uniq = [];
-  for(const c of sortCats(out)){
-    let id=c.id;
-    let k=1;
-    while(seen.has(id)){ id = `${c.id}-${k++}`; }
-    seen.add(id);
-    uniq.push({ ...c, id });
-  }
-  return uniq;
-}
-
-/* ------------------------- UI: Produtos ------------------------- */
-function escapeHtml(s){
-  return String(s||"").replace(/[&<>"']/g,(m)=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[m]));
+function getFilteredProducts(){
+  const t = filterText.trim().toLowerCase();
+  return products.filter(p => {
+    if(filterOnlyActive && p.active === false) return false;
+    if(filterCat !== "all" && p.cat !== filterCat) return false;
+    if(!t) return true;
+    return (p.name || "").toLowerCase().includes(t) || (p.desc || "").toLowerCase().includes(t);
+  });
 }
 
 function renderProducts(){
-  const sorted = [...products].sort((a,b)=> (a.order??0)-(b.order??0));
-  rowsEl.innerHTML = sorted.map((p, idx)=>`
-    <tr data-doc="${p._docId||""}">
-      <td style="padding:10px 12px;">
-        <input class="input" data-k="order" type="number" min="0" value="${idx}" style="width:86px;">
-      </td>
-      <td style="padding:10px 12px;">
-        <select class="input" data-k="cat">${categoryOptionsHtml(p.cat)}</select>
-      </td>
-      <td style="padding:10px 12px;">
-        <input class="input" data-k="name" value="${escapeHtml(p.name)}" placeholder="Nome do produto" />
-      </td>
-      <td style="padding:10px 12px;">
-        <input class="input" data-k="image" value="${escapeHtml(p.image||"")}" placeholder="URL da imagem (opcional)" />
-      </td>
-      <td style="padding:10px 12px;">
-        <textarea class="input" data-k="desc" rows="2" placeholder="Descrição">${escapeHtml(p.desc||"")}</textarea>
-      </td>
-      <td style="padding:10px 12px; white-space:nowrap;">
-        <input class="input" data-k="price" value="${centsToMoney(p.priceCents||0)}" style="width:120px;">
-      </td>
-      <td style="padding:10px 12px; white-space:nowrap;">
-        <button class="btn btn-danger" data-action="remove">Excluir</button>
-      </td>
-    </tr>
-  `).join("");
+  const tbody = $("#rows");
+  if(!tbody) return;
+
+  const list = getFilteredProducts();
+
+  tbody.innerHTML = list.map((p, idx) => {
+    const orderIndex = products.indexOf(p); // ordem real na lista completa
+    const catSelect = categoryOptionsHtml(p.cat);
+    const catExists = categories.some(c => c.id === p.cat);
+    const catWarning = catExists ? "" : `<div style="margin-top:6px; color:#ff9bb0; font-size:12px;">Categoria removida</div>`;
+
+    return `
+      <tr data-id="${escapeHtml(p.id)}">
+        <td>
+          <div class="rowActions" style="justify-content:flex-start;">
+            <button class="miniBtn" data-act="up" ${orderIndex===0 ? "disabled":""}>↑</button>
+            <button class="miniBtn" data-act="down" ${orderIndex===products.length-1 ? "disabled":""}>↓</button>
+          </div>
+        </td>
+        <td>
+          <label class="adminCheck" style="gap:8px;">
+            <input type="checkbox" data-field="active" ${p.active!==false ? "checked":""} />
+            <span style="color:var(--muted); font-size:12px;">ok</span>
+          </label>
+        </td>
+        <td>
+          <select class="input" data-field="cat">
+            ${catSelect}
+          </select>
+          ${catWarning}
+        </td>
+        <td>
+          <input class="input" data-field="name" value="${escapeHtml(p.name)}" />
+        </td>
+        <td>
+          <textarea class="input" data-field="desc" rows="2" style="resize:vertical; min-height:44px;">${escapeHtml(p.desc)}</textarea>
+        </td>
+        <td style="white-space:nowrap;">
+          <input class="input" data-field="price" value="${escapeHtml(centsToCurrency(p.priceCents))}" inputmode="decimal" />
+        </td>
+        <td>
+          <div class="rowActions">
+            <button class="miniBtn miniBtn--danger" data-act="delete">Excluir</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join("");
+
+  updateStats();
 }
 
-function collectProductsFromUI(){
-  const trs = Array.from(rowsEl.querySelectorAll("tr"));
-  const out=[];
-  trs.forEach((tr, idx)=>{
-    const _docId = tr.dataset.doc || "";
-    const cat = tr.querySelector('[data-k="cat"]').value;
-    const name = tr.querySelector('[data-k="name"]').value.trim();
-    const image = tr.querySelector('[data-k="image"]').value.trim();
-    const desc = tr.querySelector('[data-k="desc"]').value.trim();
-    const priceCents = moneyToCents(tr.querySelector('[data-k="price"]').value);
-    const order = idx;
-    if(!name) return;
-    out.push({ _docId: _docId || null, id: _docId || null, cat, name, image, desc, priceCents, order, active:true });
+/* ------------------------- Wiring ------------------------- */
+function wireFilters(){
+  $("#filterText")?.addEventListener("input", (e)=>{
+    filterText = e.target.value || "";
+    renderProducts();
   });
-  return out;
-}
 
-/* ------------------------- Actions ------------------------- */
-async function loadAll(){
-  categories = await loadCategoriesFS();
-  if(!categories.length){
-    categories = [
-      { id:"novidades", label:"NOVIDADES", order:0 },
-      { id:"promocoes", label:"PROMOÇÕES", order:1 },
-      { id:"kits", label:"KITS", order:2 },
-      { id:"avulsos", label:"AVULSOS", order:3 },
-    ];
-    await saveCategoriesFS(categories);
-  }
-  products = await loadProductsFS();
-}
-
-function renderAll(){
-  renderCategories();
-  renderProducts();
-}
-
-async function addCategory(){
-  categories.push({ id:"nova-categoria", label:"NOVA CATEGORIA", order: categories.length });
-  renderCategories();
-}
-
-async function saveCategories(){
-  const newCats = collectCategoriesFromUI();
-  if(!newCats.length){ alert("Crie pelo menos 1 categoria."); return; }
-  await saveCategoriesFS(newCats);
-  categories = await loadCategoriesFS();
-  renderCategories();
-  // re-render produtos para atualizar selects sem bagunçar valores
-  renderProducts();
-  alert("Categorias salvas!");
-}
-
-function addProduct(){
-  const firstCat = sortCats(categories)[0]?.id || "novidades";
-  products.push({
-    _docId: null,
-    id: null,
-    cat: firstCat,
-    name: "",
-    desc: "",
-    image: "",
-    priceCents: 0,
-    order: products.length,
-    active: true
+  $("#filterCat")?.addEventListener("change", (e)=>{
+    filterCat = e.target.value || "all";
+    renderProducts();
   });
-  renderProducts();
-  // foca no último nome
-  const last = rowsEl.querySelector("tr:last-child [data-k='name']");
-  if(last) last.focus();
+
+  $("#filterOnlyActive")?.addEventListener("change", (e)=>{
+    filterOnlyActive = !!e.target.checked;
+    renderProducts();
+  });
 }
 
-async function saveProducts(){
-  const newProducts = collectProductsFromUI();
-  await saveProductsFS(newProducts);
-  products = await loadProductsFS();
-  renderProducts();
-  alert("Produtos salvos!");
+function wireCategories(){
+  $("#addCategory")?.addEventListener("click", ()=>{
+    const label = "Nova categoria";
+    let id = slugify(label);
+    let i = 2;
+    while(categories.some(c => c.id === id)){
+      id = `${slugify(label)}-${i++}`;
+    }
+    categories.unshift({ id, label, order: 0 });
+    renderCategories();
+    showToast("Categoria adicionada", "Você pode renomear sem mudar o ID.");
+  });
+
+  $("#categoriesList")?.addEventListener("input", (e)=>{
+    const row = e.target.closest("[data-id]");
+    if(!row) return;
+    const id = row.dataset.id;
+    const cat = categories.find(c => c.id === id);
+    if(!cat) return;
+    if(e.target.matches("[data-cat-label]")){
+      cat.label = e.target.value || "";
+      categoryOptionsHtml();
+      updateStats();
+    }
+  });
+
+  $("#categoriesList")?.addEventListener("click", (e)=>{
+    const btn = e.target.closest("[data-cat-act]");
+    if(!btn) return;
+    const row = btn.closest("[data-id]");
+    if(!row) return;
+    const id = row.dataset.id;
+    const act = btn.dataset.catAct;
+    const idx = categories.findIndex(c => c.id === id);
+    if(idx < 0) return;
+
+    if(act === "up" && idx > 0){
+      [categories[idx-1], categories[idx]] = [categories[idx], categories[idx-1]];
+      renderCategories(); renderProducts();
+    }
+    if(act === "down" && idx < categories.length-1){
+      [categories[idx+1], categories[idx]] = [categories[idx], categories[idx+1]];
+      renderCategories(); renderProducts();
+    }
+    if(act === "del"){
+      categories.splice(idx,1);
+      renderCategories(); renderProducts();
+      showToast("Categoria removida", "Produtos dessa categoria ficam marcados como 'Categoria removida'.");
+    }
+  });
+
+  $("#saveCategories")?.addEventListener("click", async ()=>{
+    try{
+      await saveCategories();
+      showToast("Categorias salvas");
+    }catch(err){
+      showToast("Erro", err?.message || "Não foi possível salvar.");
+    }
+  });
 }
 
-function exportJson(){
-  const data = collectProductsFromUI();
-  const blob = new Blob([JSON.stringify(data.map(p=>({
-    id: p.id || undefined,
-    cat: p.cat,
-    name: p.name,
-    desc: p.desc,
-    image: p.image,
-    priceCents: p.priceCents
-  })), null, 2)], { type:"application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "products-export.json";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+function wireProducts(){
+  $("#addProduct")?.addEventListener("click", async ()=>{
+    try{
+      const { doc, collection } = await fs();
+      const id = doc(collection(db, "products")).id;
+
+      const defaultCat = categories[0]?.id || "avulsos";
+      const p = { id, cat: defaultCat, name: "Novo produto", desc: "", priceCents: 0, active: true, order: 0 };
+
+      // entra no topo, sem scroll
+      products.unshift(p);
+
+      renderProducts();
+
+      // rola pro topo e foca no nome
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      setTimeout(()=>{
+        const row = document.querySelector(`tr[data-id="${CSS.escape(id)}"]`);
+        const nameInput = row?.querySelector('[data-field="name"]');
+        nameInput?.focus();
+        nameInput?.select();
+      }, 60);
+
+      showToast("Pronto", "Produto criado no topo. Preencha e clique em Salvar.");
+    }catch(err){
+      showToast("Erro", err?.message || "Não foi possível criar.");
+    }
+  });
+
+  $("#rows")?.addEventListener("input", (e)=>{
+    const row = e.target.closest("tr[data-id]");
+    if(!row) return;
+    const id = row.dataset.id;
+    const p = products.find(x => x.id === id);
+    if(!p) return;
+
+    const field = e.target.dataset.field;
+    if(!field) return;
+
+    if(field === "active") p.active = !!e.target.checked;
+    if(field === "cat") p.cat = e.target.value || p.cat;
+    if(field === "name") p.name = e.target.value || "";
+    if(field === "desc") p.desc = e.target.value || "";
+    if(field === "price") p.priceCents = currencyToCents(e.target.value);
+
+    updateStats();
+  });
+
+  $("#rows")?.addEventListener("click", async (e)=>{
+    const btn = e.target.closest("[data-act]");
+    if(!btn) return;
+    const row = btn.closest("tr[data-id]");
+    if(!row) return;
+    const id = row.dataset.id;
+    const act = btn.dataset.act;
+    const idx = products.findIndex(p => p.id === id);
+    if(idx < 0) return;
+
+    if(act === "up" && idx > 0){
+      [products[idx-1], products[idx]] = [products[idx], products[idx-1]];
+      renderProducts();
+    }
+    if(act === "down" && idx < products.length-1){
+      [products[idx+1], products[idx]] = [products[idx], products[idx+1]];
+      renderProducts();
+    }
+    if(act === "delete"){
+      // remove na hora (e apaga no Firestore também)
+      try{
+        await deleteProduct(id);
+      }catch(err){
+        // se falhar, ainda permite remover da lista local (mas avisa)
+        showToast("Atenção", "Não consegui apagar no Firebase. Verifique permissões.");
+      }
+      products.splice(idx,1);
+      renderProducts();
+      showToast("Excluído", "Produto removido.");
+    }
+  });
+
+  $("#saveProducts")?.addEventListener("click", async ()=>{
+    try{
+      await saveCategories(); // garante ordem/labels atualizadas também
+      await saveProducts();
+      showToast("Salvo", "Atualize a vitrine se já estiver aberta.");
+    }catch(err){
+      showToast("Erro", err?.message || "Não foi possível salvar.");
+    }
+  });
 }
 
-async function importJson(file){
-  const text = await file.text();
-  const parsed = JSON.parse(text);
-  if(!Array.isArray(parsed)) throw new Error("JSON inválido");
-  const firstCat = sortCats(categories)[0]?.id || "novidades";
-  products = parsed.map((p, idx)=>({
-    _docId: p.id || null,
-    id: p.id || null,
-    cat: p.cat || firstCat,
-    name: p.name || "",
-    desc: p.desc || "",
-    image: p.image || "",
-    priceCents: Number.isFinite(+p.priceCents) ? +p.priceCents : 0,
-    order: idx,
-    active: true
-  }));
-  renderProducts();
+function wireMore(){
+  $("#btnReload")?.addEventListener("click", async ()=>{
+    await refreshAll(true);
+  });
+
+  $("#exportJson")?.addEventListener("click", ()=>{
+    const payload = { categories, products };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "catalogo.json";
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast("Exportado", "catalogo.json baixado.");
+  });
+
+  $("#importJson")?.addEventListener("change", async (e)=>{
+    const file = e.target.files?.[0];
+    if(!file) return;
+    try{
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      if(Array.isArray(parsed.categories)) categories = parsed.categories;
+      if(Array.isArray(parsed.products)) products = parsed.products;
+
+      // normaliza
+      categories = categories.map((c, idx)=>({ id: String(c.id||slugify(c.label||"categoria")), label: String(c.label||c.id||"Categoria"), order: idx }));
+      products = products.map((p, idx)=>({
+        id: String(p.id || ""),
+        cat: String(p.cat || "avulsos"),
+        name: String(p.name || ""),
+        desc: String(p.desc || ""),
+        priceCents: Number(p.priceCents ?? 0),
+        order: idx,
+        active: p.active !== false
+      })).filter(p => !!p.id);
+
+      renderCategories();
+      renderProducts();
+      showToast("Importado", "Agora clique em Salvar para enviar ao Firebase.");
+    }catch(err){
+      showToast("Erro", "JSON inválido.");
+    }finally{
+      e.target.value = "";
+    }
+  });
+
+  $("#importFromProductsJson")?.addEventListener("click", async ()=>{
+    try{
+      await importFromProductsJson();
+      await refreshAll(true);
+      showToast("Importado", "products.json foi enviado para o Firebase.");
+    }catch(err){
+      showToast("Erro", err?.message || "Não foi possível importar.");
+    }
+  });
 }
 
-/* ------------------------- Events ------------------------- */
-loginBtn?.addEventListener("click", login);
-passEl?.addEventListener("keydown", (e)=>{ if(e.key==="Enter") login(); });
-logoutBtn?.addEventListener("click", logout);
-
-addCategoryBtn?.addEventListener("click", addCategory);
-saveCategoriesBtn?.addEventListener("click", ()=>saveCategories().catch(e=>{console.warn(e); alert("Erro ao salvar categorias.");}));
-
-addProductBtn?.addEventListener("click", addProduct);
-saveProductsBtn?.addEventListener("click", ()=>saveProducts().catch(e=>{console.warn(e); alert("Erro ao salvar produtos.");}));
-
-rowsEl?.addEventListener("click", (e)=>{
-  const btn = e.target.closest("button[data-action='remove']");
+/* ------------------------- Auth ------------------------- */
+async function wireLogin(){
+  const btn = $("#adminLogin");
   if(!btn) return;
-  const tr = btn.closest("tr");
-  tr.remove();
-});
 
-exportJsonBtn?.addEventListener("click", exportJson);
-importJsonInput?.addEventListener("change", async (e)=>{
-  const file = e.target.files?.[0];
-  if(!file) return;
+  btn.addEventListener("click", async ()=>{
+    setLoginHint("");
+    if(!firebaseReady || !auth){
+      setLoginHint("Firebase não configurado. Preencha /assets/firebase-config.js e publique novamente.");
+      return;
+    }
+    const email = String($("#adminEmail")?.value || "").trim();
+    const pass = String($("#adminPass")?.value || "").trim();
+    if(!email || !pass){
+      setLoginHint("Informe email e senha.");
+      return;
+    }
+    try{
+      const { signInWithEmailAndPassword } = await fa();
+      await signInWithEmailAndPassword(auth, email, pass);
+    }catch(err){
+      setLoginHint("Não foi possível entrar. Verifique email/senha.");
+    }
+  });
+
+  $("#btnLogout")?.addEventListener("click", async ()=>{
+    try{
+      const { signOut } = await fa();
+      await signOut(auth);
+      showToast("Saiu");
+    }catch(_){}
+  });
+
+  // enter para logar
+  $("#adminPass")?.addEventListener("keydown", (e)=>{
+    if(e.key === "Enter") btn.click();
+  });
+}
+
+async function refreshAll(showToasts=false){
   try{
-    await importJson(file);
+    categories = await loadCategories();
+    if(!categories.length){
+      // fallback mínimo para não quebrar selects
+      categories = [
+        { id:"novidades", label:"Novidades", order:0 },
+        { id:"promocoes", label:"Promoções", order:1 },
+        { id:"kits", label:"Kits", order:2 },
+        { id:"avulsos", label:"Avulsos", order:3 },
+      ];
+      showToasts && showToast("Categorias", "Nenhuma categoria no Firebase. Use + Categoria e Salvar.");
+    }
+    products = await loadProducts();
+
+    // filtros default
+    filterText = "";
+    filterCat = "all";
+    filterOnlyActive = true;
+    $("#filterText") && ($("#filterText").value = "");
+    $("#filterOnlyActive") && ($("#filterOnlyActive").checked = true);
+
+    renderCategories();
+    renderProducts();
+
+    showToasts && showToast("Atualizado", "Dados carregados do Firebase.");
   }catch(err){
-    console.warn(err);
-    alert("Não consegui importar esse JSON.");
-  }finally{
-    importJsonInput.value = "";
+    showToasts && showToast("Erro", err?.message || "Não foi possível carregar.");
   }
-});
+}
 
-categoriesList?.addEventListener("click", (e)=>{
-  const btn = e.target.closest("button[data-role='remove']");
-  if(!btn) return;
-  btn.closest(".catRow")?.remove();
-});
+(async ()=>{
+  await wireLogin();
+  wireFilters();
+  wireCategories();
+  wireProducts();
+  wireMore();
 
-// init
-watchAuth();
+  if(!firebaseReady || !auth){
+    showPanels(false);
+    setLoginHint("Firebase não configurado. Preencha /assets/firebase-config.js e publique novamente.");
+    return;
+  }
+
+  const { onAuthStateChanged } = await fa();
+  onAuthStateChanged(auth, async (user)=>{
+    showPanels(!!user);
+    if(user){
+      await refreshAll(true);
+    }
+  });
+})();

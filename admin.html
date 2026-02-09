@@ -3,95 +3,144 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>StudioMind — Admin Produtos</title>
+  <title>StudioMind — Admin</title>
   <link rel="stylesheet" href="./assets/style.css" />
   <meta name="robots" content="noindex,nofollow" />
 </head>
-<body>
-  <header class="siteHeader">
-    <div class="container headerRow">
-      <a class="brand" href="./index.html">
+<body class="admin-page">
+  <header class="siteHeader adminHeader">
+    <div class="container headerRow adminHeaderRow">
+      <a class="brand" href="./index.html" aria-label="Voltar ao site">
         <span class="brandMark"></span>
         <span class="brandText">StudioMind</span>
       </a>
-      <nav class="nav">
+
+      <div class="adminTopRight">
         <a class="navLink" href="./index.html">Voltar ao site</a>
-        <span class="adminUserBadge" id="adminUserBadge" title="Logado" style="display:none;"></span>
-        <button class="btn btn-ghost" id="adminLogout" type="button" style="display:none;">Sair</button>
-      </nav>
+        <button class="btn btn--ghost" id="btnLogout" type="button" style="display:none;">Sair</button>
+      </div>
     </div>
   </header>
 
-  <main class="container" style="padding: 28px 0 64px;">
-    <section class="panel" id="loginPanel">
-      <h1 class="panelTitle">Acesso admin</h1>
-      <p class="muted" style="max-width: 70ch;">Faça login para editar o catálogo que aparece na vitrine.</p>
-
-      <div class="authGrid">
-        <div class="field">
-          <label for="adminEmail">Email</label>
-          <input class="input" id="adminEmail" type="email" placeholder="seu@email.com" autocomplete="username" />
-        </div>
-        <div class="field">
-          <label for="adminPass">Senha</label>
-          <input class="input" id="adminPass" type="password" placeholder="••••••••" autocomplete="current-password" />
-        </div>
-        <div class="field" style="align-self:end;">
-          <button class="btn btn-primary btn-block" id="adminLogin" type="button">Entrar</button>
-        </div>
+  <main class="container adminMain">
+    <!-- LOGIN -->
+    <section class="adminCard" id="loginPanel">
+      <div class="adminCardHead">
+        <h1 class="adminTitle">Admin</h1>
+        <p class="adminSubtitle">Acesse para editar o catálogo que aparece na vitrine.</p>
       </div>
-      <p class="muted" id="loginHint" style="margin-top:10px; display:none;"></p>
+
+      <div class="adminLoginGrid">
+        <label class="adminField">
+          <span>Email</span>
+          <input class="input" id="adminEmail" type="email" placeholder="seu@email.com" autocomplete="username" />
+        </label>
+
+        <label class="adminField">
+          <span>Senha</span>
+          <input class="input" id="adminPass" type="password" placeholder="••••••••" autocomplete="current-password" />
+        </label>
+
+        <button class="btn btn--accent adminLoginBtn" id="adminLogin" type="button">Entrar</button>
+      </div>
+
+      <p class="adminHint" id="loginHint" style="display:none;"></p>
     </section>
 
-    <section class="panel" id="adminPanel" style="display:none;">
-      <h1 class="panelTitle">Organizar produtos</h1>
-      <p class="muted" style="max-width: 70ch;">
-        As alterações ficam salvas no Firebase (Firestore). Qualquer dispositivo verá o mesmo catálogo.
-      </p>
+    <!-- ADMIN -->
+    <section id="adminPanel" style="display:none;">
+      <div class="adminSticky">
+        <div class="adminStickyInner">
+          <div class="adminSummary">
+            <div class="adminStat">
+              <div class="adminStatLabel">Produtos</div>
+              <div class="adminStatValue" id="statProducts">—</div>
+            </div>
+            <div class="adminStat">
+              <div class="adminStatLabel">Categorias</div>
+              <div class="adminStatValue" id="statCats">—</div>
+            </div>
+            <div class="adminStat">
+              <div class="adminStatLabel">Visíveis</div>
+              <div class="adminStatValue" id="statActive">—</div>
+            </div>
+          </div>
 
+          <div class="adminActions">
+            <button class="btn btn--accent" id="addProduct" type="button">+ Produto</button>
+            <button class="btn" id="saveProducts" type="button">Salvar</button>
 
-      <section class="panel" style="padding:16px; margin-top:16px;">
-        <h2 class="panelTitle" style="margin-top:0;">Categorias</h2>
-        <p class="muted" style="max-width: 70ch;">
-          Aqui você define os nomes das categorias e a ordem em que elas aparecem na loja.
-        </p>
-        <div class="panelCta" style="justify-content:flex-start; gap:10px; flex-wrap:wrap;">
-          <button class="btn" id="addCategory">Adicionar categoria</button>
-          <button class="btn" id="saveCategories">Salvar categorias</button>
+            <details class="adminMore">
+              <summary class="btn btn--ghost">Mais</summary>
+              <div class="adminMoreMenu">
+                <button class="btn" id="btnReload" type="button">Recarregar</button>
+                <button class="btn" id="exportJson" type="button">Exportar JSON</button>
+                <label class="btn" style="cursor:pointer;">
+                  Importar JSON
+                  <input type="file" id="importJson" accept="application/json" style="display:none;">
+                </label>
+                <button class="btn" id="importFromProductsJson" type="button">Importar da vitrine (products.json)</button>
+              </div>
+            </details>
+          </div>
+
+          <div class="adminFilters">
+            <label class="adminField adminField--inline">
+              <span>Buscar</span>
+              <input class="input" id="filterText" type="search" placeholder="nome ou descrição..." />
+            </label>
+
+            <label class="adminField adminField--inline">
+              <span>Categoria</span>
+              <select class="input" id="filterCat"></select>
+            </label>
+
+            <label class="adminCheck">
+              <input type="checkbox" id="filterOnlyActive" checked />
+              <span>Somente visíveis</span>
+            </label>
+          </div>
         </div>
-        <div id="categoriesList" style="margin-top:12px;"></div>
+      </div>
+
+      <section class="adminCard adminCard--tight">
+        <div class="adminCardHead adminCardHead--row">
+          <h2 class="adminH2">Categorias</h2>
+          <div class="adminCardRight">
+            <button class="btn" id="addCategory" type="button">+ Categoria</button>
+            <button class="btn" id="saveCategories" type="button">Salvar categorias</button>
+          </div>
+        </div>
+        <div id="categoriesList" class="adminCats"></div>
       </section>
 
-      <div class="panelCta" style="justify-content:flex-start; gap:10px; flex-wrap:wrap;">
-        <button class="btn btn-primary" id="addProduct">Adicionar produto</button>
-        <button class="btn" id="saveProducts">Salvar</button>
-        <button class="btn" id="resetProducts">Voltar ao padrão</button>
-        <button class="btn" id="exportJson">Exportar JSON</button>
-        <label class="btn" style="cursor:pointer;">
-          Importar JSON
-          <input type="file" id="importJson" accept="application/json" style="display:none;">
-        </label>
-      </div>
+      <section class="adminCard adminCard--tight">
+        <div class="adminCardHead adminCardHead--row">
+          <h2 class="adminH2">Produtos</h2>
+          <p class="adminSubtitle" style="margin:0;">Dica: “+ Produto” sempre entra no topo.</p>
+        </div>
 
-      <div class="adminTableWrap" style="margin-top:16px; overflow:auto; border:1px solid var(--border); border-radius:16px;">
-        <table class="adminTable" style="width:100%; border-collapse:collapse; min-width:860px;">
-          <thead>
-            <tr>
-              <th style="text-align:left; padding:12px 14px;">Ordem</th>
-              <th style="text-align:left; padding:12px 14px;">Categoria</th>
-              <th style="text-align:left; padding:12px 14px;">Nome</th>
-              <th style="text-align:left; padding:12px 14px;">Descrição</th>
-              <th style="text-align:left; padding:12px 14px;">Preço (R$)</th>
-              <th style="text-align:left; padding:12px 14px;">Ações</th>
-            </tr>
-          </thead>
-          <tbody id="rows"></tbody>
-        </table>
-      </div>
-
-      <p class="muted" style="margin-top:12px;">Categorias: <strong>kits</strong>, <strong>avulsos</strong>, <strong>promocoes</strong>, <strong>novidades</strong>.</p>
+        <div class="adminTableWrap">
+          <table class="adminTable">
+            <thead>
+              <tr>
+                <th>Ordem</th>
+                <th>Visível</th>
+                <th>Categoria</th>
+                <th>Nome</th>
+                <th>Descrição</th>
+                <th>Preço (R$)</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+      </section>
     </section>
   </main>
+
+  <div id="toastHost" class="toastHost" aria-live="polite" aria-atomic="true"></div>
 
   <script type="module" src="./assets/admin.js"></script>
 </body>
