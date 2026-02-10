@@ -51,7 +51,7 @@ exports.handler = async (event) => {
       mode: "payment",
       line_items,
       // Habilita todos os métodos disponíveis automaticamente (cartão, Pix etc. conforme sua conta/país)
-      automatic_payment_methods: { enabled: true },
+      payment_method_types: ["card", "pix"],
       // Permite usar cupons/promotion codes criados no Stripe
       allow_promotion_codes: true,
       locale: "pt-BR",
